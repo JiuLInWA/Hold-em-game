@@ -1,0 +1,208 @@
+syntax = "proto3";
+
+package pb_msg;
+
+enum Enum_SvrTipType {
+    MSG = 0; // 普通消息
+    WARN = 1; // 警告消息
+    ERROR = 2; // 错误消息
+}
+
+//--0
+message Ping_c2s {
+}
+
+//--1
+message Pong_s2c {
+    int64 serverTime = 1; // 服务器时间戳
+}
+
+//--2
+message SvrMsg_s2c {
+    int32 code = 1; // 消息代码
+    string data = 2; // 消息参数
+    Enum_SvrTipType tipType = 3; // 消息类型
+}
+
+// 玩家基础信息
+message PlayerInfo {
+    string id = 1; // 玩家ID
+    string name = 2; // 玩家名字
+    string headImg = 3; // 玩家头像
+    double balance = 4; // 账户余额
+}
+
+// 登录信息
+message LoginInfo {
+    string id = 1;
+    string game_id = 2;
+    string server_url = 3; // 地址和端口
+}
+
+//--3
+message Login_c2s {
+    LoginInfo loginInfo = 1;
+}
+
+//--4
+message LoginResult_s2c {
+    PlayerInfo playerInfo = 1;
+}
+
+// 牌花色
+enum Enum_CardKind {
+    NONE = 0; // 无花色
+    DIAMOND = 1; // 方片
+    CLUBS = 2; // 梅花
+    HEART = 3; // 红心
+    SPADE = 4; // 黑桃
+}
+
+// 牌型
+enum Enum_CardSuit {
+    NULL = 0;
+    // 高牌
+    HIGH_CARD = 1;
+    // 一对
+    ONE_PAIR = 2;
+    // 两对
+    TWO_PAIRS = 3;
+    // 三条
+    THREE_OF_A_KIND = 4;
+    // 顺子
+    STRAIGHT = 5;
+    // 同花
+    FLUSH = 6;
+    // 葫芦
+    FULL_HOUSE = 7;
+    // 四条
+    FOUR_OF_A_KIND = 8;
+    // 同花顺
+    STRAIGHT_FLUSH = 9;
+    // 皇家同花顺
+    ROYAL_FLUSH = 10;
+}
+
+// 玩家操作类型
+enum Enum_ActionOptions {
+    ACT_JOIN_ROOM = 0; // 加入房间
+    ACT_SIT = 1; // 坐下
+    ACT_STAND_UP = 2; // 离座
+    ACT_LEAVE_ROOM = 3; // 离开房间
+    ACT_FOLD = 4; // 弃牌
+    ACT_CALL = 5; // 跟牌
+    ACT_RAISE = 6; // 加注
+    ACT_CHECK = 7; // 过牌
+}
+
+// 盲注类型
+enum Enum_Blind {
+    NO_BLIND = 0; // 不是盲注
+    SMALL_BLIND = 1; // 小盲注
+    BIG_BLIND = 2; // 大盲注
+}
+
+// 游戏阶段
+enum Enum_GameStep {
+    STEP_WAITING = 0;   // 等待牌局开始
+    STEP_PRE_FLOP = 1;  // 翻牌前，下盲注，发底牌
+    STEP_FLOP = 2;      // 翻牌圈，牌桌上发3张公牌
+    STEP_TURN = 3;      // 转牌圈，牌桌上发第4张公共牌
+    STEP_RIVER = 4;     // 河牌圈，牌桌上发第5张公共牌
+    STEP_SHOW_DOWN = 5; // 摊开底牌，开牌比大小
+}
+
+// 本轮玩家表态
+enum Enum_PlayerStatus {
+    STATUS_WAITING = 0; // 尚未表态
+    STATUS_RAISE = 1; // 加注
+    STATUS_CALL = 2; // 跟牌
+    STATUS_CHECK = 3; // 过牌
+    STATUS_FOLD = 4; // 弃牌
+    STATUS_SHOW_DOWN = 5; // 摊牌
+}
+
+// 游戏中每个玩家行动时间
+enum Enum_ActionTime_s {
+    XXX = 0;     // 枚举第一个为 0
+    NORMAL = 15; // 普通出牌速度
+    FAST = 10;   // 快速出牌速度
+}
+
+// 牌型数据
+message CardSuitData {
+    repeated int32 handCardKeys = 1; // 组成牌型的手牌
+    repeated int32 publicCardKeys = 2; // 组成牌型的公牌
+    Enum_CardSuit suitPattern = 3; // 牌型
+}
+
+// 房间基础信息
+message RoomInfo {
+    string roomId = 1; // 房间号Id
+    string cfgId = 2; // 房间进入设定
+    int32 maxPlayer = 3; // 最大玩家数
+    Enum_ActionTime_s actionTime_s = 4; // 房间行动速度
+    string pwd = 5; // 房间密码
+}
+
+// 玩家数据
+message PlayerData {
+    PlayerInfo playerInfo = 1; // 玩家基础信息
+    int32 position = 2; // 房间座位号（未入座给-1）
+    bool isRaised = 3; // 本轮是否已经raise过(每个玩家每轮只有一次raise的机会)
+    Enum_PlayerStatus playerStatus = 4; // 本轮玩家表态
+    double dropedBets = 5; // 玩家状态为跟牌、加注时最终要下的赌注额
+    double dropedBetsSum = 6; // 这局中总共下注了多少
+    repeated int32 cardKeys = 7; // 玩家手牌
+    CardSuitData cardSuitData = 8; // 玩家手牌和公牌能组成的牌型数据
+    bool isWinner = 9; // 玩家是否赢家
+    Enum_Blind blind = 10; // 盲注类型
+    bool isButton = 11; // 是否庄家
+    bool isAllIn = 12; // 是否已经AllIn
+    bool isSelf = 13; // 是否玩家自己
+    double resultMoney = 14; // 本局游戏结束时收到的钱
+}
+
+// 房间数据
+message RoomData {
+    RoomInfo roomInfo = 1; // 房间基础信息
+    bool isStepEnd = 2; // 是否本轮结束(将玩家筹码飞到注池)
+    Enum_GameStep gameStep = 3; // 当前游戏阶段状态
+    double minRaise = 4; // 加注最小值（本轮水位）
+    int32 activePos = 5; // 当前正在行动的玩家座位号
+    int64 nextStepTs = 6; // 下一个阶段的时间戳
+    double pot = 7; // 赌注池当前总共有多少钱
+    repeated int32 publicCardKeys = 8; // 桌面公牌
+    repeated PlayerData playerDatas = 9; // 房间玩家数据
+}
+
+//--5 根据房间条件快速匹配一张牌桌
+message QuickStart_c2s {
+    RoomInfo roomInfo = 1;
+}
+
+//--6 创建房间请求
+message CreateRoom_c2s {
+    RoomInfo roomInfo = 1;
+}
+
+//--7 加入房间请求
+message JoinRoom_c2s {
+    string roomId = 1;
+    string pwd = 2;
+}
+
+//--8 进入房间
+message EnterRoom_s2c {
+    RoomData roomData = 1;
+}
+
+//--9 退出房间请求
+message ExitRoom_c2s {
+    string Id = 1;
+}
+
+//--10 退出房间
+message ExitRoom_s2c {
+    PlayerInfo playerInfo = 1;
+}
