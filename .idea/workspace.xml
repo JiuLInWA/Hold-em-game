@@ -260,9 +260,9 @@
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="-11" />
-    <option name="width" value="980" />
-    <option name="height" value="1031" />
+    <option name="x" value="955" />
+    <option name="width" value="981" />
+    <option name="height" value="1032" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
@@ -575,7 +575,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../T-server/game/internal/chanrpc.go" />
+    <entry file="file://$PROJECT_DIR$/game/internal/chanrpc.go" />
     <entry file="file://$PROJECT_DIR$/../SZS_Server/server/game/internal/assistFunc.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="332">
@@ -583,8 +583,8 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../T-server/game/internal/Player.go" />
-    <entry file="file://$PROJECT_DIR$/../T-server/game/internal/handler.go" />
+    <entry file="file://$PROJECT_DIR$/game/internal/Player.go" />
+    <entry file="file://$PROJECT_DIR$/game/internal/handler.go" />
     <entry file="file://C:/Go/src/encoding/binary/binary.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="123">
