@@ -1,9 +1,9 @@
 {
 	"LogLevel": "debug",
 	"LogPath" : "",
-	"WSAddr"  : "127.0.0.1:8889",
-	"TCPAddr" : "127.0.0.1:8888",
+	"WSAddr"  : "0.0.0.0:8889",
+	"TCPAddr" : "0.0.0.0:8888",
 	"MaxConnNum": 20000,
 
-	"MongoDBIP": "10.63.58.49"
+	"MongoDBIP": "47.75.183.211:27017"
 }

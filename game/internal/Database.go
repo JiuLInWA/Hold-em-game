@@ -1,13 +1,11 @@
 package internal
 
-
 import (
 	"C"
 	"fmt"
 	"github.com/name5566/leaf/log"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"server/conf"
 	pb_msg "server/msg/Protocal"
 	"time"
 )
@@ -16,21 +14,22 @@ import (
 func connect(cName string) (*mgo.Session, *mgo.Collection) {
 	// 此处连接正式线上数据库  下面是模拟的直接连接
 	mongoDBDialInfo := &mgo.DialInfo{
-		Addrs:    []string{conf.Server.MongoDBIP},
+		Addrs:    []string{"47.75.183.211:27017"},
 		Timeout:  60 * time.Second,
-		Database: "IM",
-		Username: "im",
+		Database: "",
+		Username: "root",
 		Password: "123456",
 	}
+
 	session, err := mgo.DialWithInfo(mongoDBDialInfo)
 	if err != nil {
-		log.Fatal("数据库连接失败:", err)
+		log.Fatal("数据库连接失败: ", err)
 	}
 	log.Debug("数据库连接成功~")
 	//打开数据库
 	session.SetMode(mgo.Monotonic, true)
 
-	return session, session.DB("IM").C(cName)
+	return session, session.DB("admin").C(cName)
 }
 
 // 查找用户信息
@@ -57,7 +56,6 @@ func FindUserInfoData(m *pb_msg.LoginC2S) (pb_msg.PlayerInfo, error) {
 	}
 	return *ud, err
 }
-
 
 // 玩家基础信息
 type PlayerInfo struct {
