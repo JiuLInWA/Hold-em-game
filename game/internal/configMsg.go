@@ -13,16 +13,18 @@ const (
 	RECODE_PLAYERMONEY   = 1005
 	RECODE_JoinROOMERR   = 1006
 	RECODE_PLAYERDESTORY = 1007
+	RECODE_NOTCHIPS      = 1008
 )
 
 var recodeText = map[int32]string{
 	RECODE_CREATERR:      "用户已创建房间",
 	RECODE_FINDROOM:      "请求加入的房间号不存在",
-	RECODE_JOINROOMPWD:   "加入房间密码错误",
-	RECODE_PERSONNUM:     "房间人数已满",
-	RECODE_PLAYERMONEY:   "用户金额不足",
+	RECODE_JOINROOMPWD:   "加入房间密码错误,",
+	RECODE_PERSONNUM:     "房间人数已满,不能进入房间",
+	RECODE_PLAYERMONEY:   "用户金额不足,不能进入房间",
 	RECODE_JoinROOMERR:   "用户已在当前房间,不能再次进入",
 	RECODE_PLAYERDESTORY: "用户已在其他地方登录",
+	RECODE_NOTCHIPS:      "玩家带入筹码已不足",
 }
 
 func jsonData() {

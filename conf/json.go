@@ -17,7 +17,10 @@ var Server struct {
 	ConsolePort int
 	ProfilePath string
 
-	MongoDBIP   string
+	MongoDBAddr   string
+	MongoDBAuth	  string
+	MongoDBUser	  string
+	MongoDBPwd	  string
 }
 
 func init() {
@@ -29,5 +32,4 @@ func init() {
 	if err != nil {
 		log.Fatal("%v", err)
 	}
-
 }

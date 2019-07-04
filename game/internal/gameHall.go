@@ -25,7 +25,21 @@ func (gh *GameHall) Init() {
 func (gh *GameHall) CreateRoom(p *Player, r *RoomInfo) *GameRoom {
 
 	room := &GameRoom{}
-	room.Init(p, r)
+	room.Init(r)
+
+	dataCfg := CfgDataHandle(r.CfgId)
+	if int32(p.balance) < dataCfg.MinTakeIn {
+		balance := strconv.FormatFloat(p.balance, 'f', 2, 64)
+		msg := pb_msg.SvrMsgS2C{}
+		msg.Code = RECODE_PLAYERMONEY
+		msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
+		msg.TipType = pb_msg.Enum_SvrTipType_WARN
+		p.connAgent.WriteMsg(&msg)
+
+		log.Debug("玩家金额不足，创建房间失败 ~")
+		return nil
+	}
+
 	gh.roomList = append(gh.roomList, room)
 	fmt.Println("CreateRoom Total Number ~ : ", len(gh.roomList))
 	return room
@@ -37,7 +51,7 @@ func (gh *GameHall) FindAvailableRoom(p *Player, r *RoomInfo) *GameRoom {
 		dataCfg := CfgDataHandle(r.CfgId)
 		fmt.Println("2~22 :", p.balance, r.ActionTimeS, r.MaxPlayer)
 		if dataCfg.MinTakeIn < int32(p.balance) && room.IsRoomActionTimes(int32(r.ActionTimeS)) &&
-			room.IsPlayerMaxNum(r.MaxPlayer) && room.IsCanJoin() {
+			room.IsPlayerMaxNum(r.MaxPlayer) && room.IsCanJoin() && room.IsRoomPwd(r.Pwd) {
 			return room
 		}
 	}
@@ -47,14 +61,19 @@ func (gh *GameHall) FindAvailableRoom(p *Player, r *RoomInfo) *GameRoom {
 //PlayerQuickStart 玩家快速匹配房间
 func (gh *GameHall) PlayerQuickStart(p *Player, r *RoomInfo) uint8 {
 	room := gh.FindAvailableRoom(p, r)
+	if room == nil {
+		return 0
+	}
 
 	return room.PlayerJoin(p)
 }
 
 //PlayerCreatRoom 玩家手动创建房间
 func (gh *GameHall) PlayerCreatRoom(p *Player, r *RoomInfo) uint8 {
-
 	room := gh.CreateRoom(p, r)
+	if room == nil {
+		return 0
+	}
 
 	return room.PlayerJoin(p)
 }
@@ -62,42 +81,8 @@ func (gh *GameHall) PlayerCreatRoom(p *Player, r *RoomInfo) uint8 {
 //PlayerJoinRoom 玩家指定房间ID加入
 func (gh *GameHall) PlayerJoinRoom(p *Player, rid string, pwd string) uint8 {
 	for _, room := range gh.roomList {
-		if room.roomInfo.RoomId == rid {
-			if room.roomInfo.Pwd == pwd {
-				dataCfg := CfgDataHandle(room.roomInfo.CfgId)
-				if dataCfg.MinTakeIn < int32(p.balance) {
-					if room.IsCanJoin() {
-						return room.PlayerJoin(p)
-					} else {
-						msg := pb_msg.SvrMsgS2C{}
-						msg.Code = RECODE_PERSONNUM
-						msg.TipType = pb_msg.Enum_SvrTipType_WARN
-						p.connAgent.WriteMsg(&msg)
 
-						log.Debug("房间人数已满,加入房间失败~")
-						return 0
-					}
-				} else {
-					balance := strconv.FormatFloat(p.balance, 'f', 2, 64)
-					msg := pb_msg.SvrMsgS2C{}
-					msg.Code = RECODE_PLAYERMONEY
-					msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
-					msg.TipType = pb_msg.Enum_SvrTipType_WARN
-					p.connAgent.WriteMsg(&msg)
-
-					log.Debug("玩家金额不足，进入房间失败~")
-					return 0
-				}
-			} else {
-				msg := pb_msg.SvrMsgS2C{}
-				msg.Code = RECODE_JOINROOMPWD
-				msg.TipType = pb_msg.Enum_SvrTipType_WARN
-				p.connAgent.WriteMsg(&msg)
-
-				log.Debug("加入房间密码输入错误~")
-				return 0
-			}
-		} else {
+		if room.roomInfo.RoomId != rid {
 			msg := pb_msg.SvrMsgS2C{}
 			msg.Code = RECODE_FINDROOM
 			msg.TipType = pb_msg.Enum_SvrTipType_WARN
@@ -106,8 +91,58 @@ func (gh *GameHall) PlayerJoinRoom(p *Player, rid string, pwd string) uint8 {
 			log.Debug("请求加入的房间号不存在~")
 			return 0
 		}
+
+		if !room.IsRoomPwd(pwd) {
+			msg := pb_msg.SvrMsgS2C{}
+			msg.Code = RECODE_JOINROOMPWD
+			msg.TipType = pb_msg.Enum_SvrTipType_WARN
+			p.connAgent.WriteMsg(&msg)
+
+			log.Debug("加入房间密码输入错误~")
+			return 0
+		}
+
+		dataCfg := CfgDataHandle(room.roomInfo.CfgId)
+		if int32(p.balance) < dataCfg.MinTakeIn {
+			balance := strconv.FormatFloat(p.balance, 'f', 2, 64)
+			msg := pb_msg.SvrMsgS2C{}
+			msg.Code = RECODE_PLAYERMONEY
+			msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
+			msg.TipType = pb_msg.Enum_SvrTipType_WARN
+			p.connAgent.WriteMsg(&msg)
+
+			log.Debug("玩家金额不足，进入房间失败~")
+			return 0
+		}
+
+		if !room.IsCanJoin() {
+			msg := pb_msg.SvrMsgS2C{}
+			msg.Code = RECODE_PERSONNUM
+			msg.TipType = pb_msg.Enum_SvrTipType_WARN
+			p.connAgent.WriteMsg(&msg)
+
+			log.Debug("房间人数已满，加入房间失败~")
+			return 0
+		}
+		return room.PlayerJoin(p)
 	}
 	return 0
+}
+
+//GetPlayerRoomInfo 获取玩家房间信息
+func (gh *GameHall) GetPlayerRoomInfo(p *Player) {
+	for _, v := range gh.roomList {
+		if v != nil {
+			for _, player := range v.PlayerList {
+				if player != nil {
+					if player.ID == p.ID {
+						a := v.RspEnterRoom(p)
+						p.connAgent.WriteMsg(a)
+					}
+				}
+			}
+		}
+	}
 }
 
 //DeleteRoom 删除房间信息
@@ -115,6 +150,7 @@ func (gh *GameHall) DeleteRoom(rid string) {
 	for k, v := range gh.roomList {
 		if v.roomInfo.RoomId == rid {
 			gh.roomList = append(gh.roomList[:k], gh.roomList[k+1:]...)
+			fmt.Println("删除房间信息成功 ~")
 		}
 	}
 }

@@ -6,19 +6,25 @@ import (
 	"github.com/name5566/leaf/log"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"server/conf"
 	pb_msg "server/msg/Protocal"
 	"time"
+)
+
+const (
+	DBName = "admin"
 )
 
 // 连接数据库集合的函数 传入集合 默认连接IM数据库
 func connect(cName string) (*mgo.Session, *mgo.Collection) {
 	// 此处连接正式线上数据库  下面是模拟的直接连接
 	mongoDBDialInfo := &mgo.DialInfo{
-		Addrs:    []string{"47.75.183.211:27017"},
+		// "127.0.0.1:27017"
+		Addrs:    []string{conf.Server.MongoDBAddr},
 		Timeout:  60 * time.Second,
-		Database: "",
-		Username: "root",
-		Password: "123456",
+		Database: conf.Server.MongoDBAuth,
+		Username: conf.Server.MongoDBUser,
+		Password: conf.Server.MongoDBPwd,
 	}
 
 	session, err := mgo.DialWithInfo(mongoDBDialInfo)
@@ -29,7 +35,7 @@ func connect(cName string) (*mgo.Session, *mgo.Collection) {
 	//打开数据库
 	session.SetMode(mgo.Monotonic, true)
 
-	return session, session.DB("admin").C(cName)
+	return session, session.DB(DBName).C(cName)
 }
 
 // 查找用户信息

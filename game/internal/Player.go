@@ -22,7 +22,7 @@ type Player struct {
 	//玩家ID
 	ID string
 	//玩家座位号
-	chair uint8
+	chair uint32
 	//全局索引
 	index uint32
 	//客户端延迟
@@ -45,11 +45,10 @@ type Player struct {
 	isSelf        bool                     //是否玩家自己
 	resultMoney   float64                  //本局游戏结束时收到的钱
 
-	//所在房间
-	room *GameRoom
+	chips float64   //带入筹码
+	room  *GameRoom //所在房间
 
 	//cards Cards	//玩家牌型
-	//chips uint32	//带入筹码
 	//Bet uint32	//当前下注
 }
 
@@ -57,6 +56,11 @@ func (p *Player) Init() {
 	p.connAgent = nil
 	p.chair = 0
 	p.index = 0
+
+	//TODO 用户登录创建玩家初始化设定，后面根据拿去中心数据做修改
+	p.name = "Hold-em"
+	p.headImg = "https://www.andreyapopov.com/Portfolio/Conceptual/1"
+	p.balance = 4000
 
 	p.IsRaised = false
 	p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_WAITING
@@ -70,6 +74,7 @@ func (p *Player) Init() {
 	p.isSelf = false
 	p.resultMoney = 0
 
+	p.chips = 0
 	p.room = nil
 	p.uClientDelay = 0
 }
@@ -79,6 +84,8 @@ func (p *Player) Save() {
 
 }
 
+//TODO 用户断线重连问题
+//TODO 判断用户是否在当前房间,这个需要遍历所有房间。。。
 //StartBreathe 开始呼吸 这里提供函数去和中心
 func (p *Player) StartBreathe() {
 	ticker := time.NewTicker(time.Second * 3)
@@ -95,7 +102,7 @@ func (p *Player) StartBreathe() {
 }
 
 //主动呼吸
-func (p *Player) ActiveBreathe()  {
+func (p *Player) ActiveBreathe() {
 	p.uClientDelay++
 
 	if p.uClientDelay > 3 {
@@ -159,7 +166,8 @@ func PlayerRegister(ID string, neo *Player) {
 		msg.Code = RECODE_PLAYERDESTORY
 		msg.TipType = pb_msg.Enum_SvrTipType_WARN
 		oldp.connAgent.WriteMsg(&msg)
-		log.Debug("msg ~: %v", msg)
+
+		log.Debug("用户已在其他地方登录 ~")
 
 		// B用户登录，主动断掉A用户
 		oldp.connAgent.Destroy()
@@ -172,9 +180,8 @@ func PlayerRegister(ID string, neo *Player) {
 //GetPlayer 获取玩家结构
 func GetPlayer(ID string) *Player {
 	p, ok := mapUserID2Player[ID]
-	log.Debug(ID)
 	if ok {
-		log.Debug("!11")
+		log.Debug("获取用户结构成功并返回 ~")
 		return p
 	}
 	return nil
@@ -203,7 +210,10 @@ func DeletePlayer(p *Player) {
 
 //PlayerExitRoom 玩家退出房间
 func (p *Player) PlayerExitRoom() {
-	fmt.Println("Player from Room Exit")
+	fmt.Println(p.ID, "~ Player from Room Exit")
+
+	fmt.Println("room", p.room)
+
 	if p.room != nil {
 		p.room.ExitFromRoom(p)
 		p.room = nil

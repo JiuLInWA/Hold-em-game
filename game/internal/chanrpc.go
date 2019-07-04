@@ -19,6 +19,7 @@ func init() {
 func rpcNewAgent(args []interface{}) {
 	a := args[0].(gate.Agent)
 
+	fmt.Println("rpcNewAgent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 	p := CreatePlayer()
 	p.connAgent = a
 
@@ -82,9 +83,13 @@ func rpcUserLogin(args []interface{}) {
 	a.WriteMsg(rsp)
 
 	//判断用户是否断线登录，通过判断用户房间是否为空，不为空，则返回房间信息
-	if p.room != nil {
-		gr := &GameRoom{}
-		gr.PlayerJoin(p)
-		p.connAgent.WriteMsg(gr)
-	}
+
+
+
+	//TODO 占时测试用~ 这样遍历所有房间，速度会变慢
+	gameHall.GetPlayerRoomInfo(p)
+
+	//room.PlayerJoin(p)
+	//p.connAgent.WriteMsg(room)
+
 }

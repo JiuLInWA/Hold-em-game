@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"github.com/name5566/leaf/gate"
 	"github.com/name5566/leaf/log"
 	"reflect"
@@ -37,8 +36,6 @@ func handleQuickStart(args []interface{}) {
 		r.ActionTimeS = m.RoomInfo.ActionTimeS
 		r.Pwd = m.RoomInfo.Pwd
 
-		//TODO 自己调试设定的余额
-		//p.balance = 4000
 		gameHall.PlayerQuickStart(p, r)
 	}
 }
@@ -70,11 +67,7 @@ func handleJoinRoom(args []interface{}) {
 	log.Debug("handleJoinRoom 用户加入房间 ~ :%v", p.ID)
 
 	if ok {
-		msg := gameHall.PlayerJoinRoom(p, m.RoomId, m.Pwd)
-		if msg == 0 {
-			log.Debug("PlayerJoinRoom error")
-			return
-		}
+		gameHall.PlayerJoinRoom(p, m.RoomId, m.Pwd)
 	}
 }
 
@@ -85,7 +78,6 @@ func handleExitRoom(args []interface{}) {
 
 	p, ok := a.UserData().(*Player)
 	if ok {
-		fmt.Println(p.ID, "exit room! ~")
 		p.PlayerExitRoom()
 	}
 }
