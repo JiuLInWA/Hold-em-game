@@ -35,7 +35,7 @@ type GameRoom struct {
 	isStepEnd      bool                 //是否本轮结束(将玩家筹码飞到注池)
 	gameStep       pb_msg.Enum_GameStep //当前游戏阶段状态
 	minRaise       float64              //加注最小值（本轮水位）
-	activePos      int32                //当前正在行动的玩家座位号
+	activePos      uint32               //当前正在行动的玩家座位号
 	nextStepTs     int64                //下一个阶段的时间戳
 	pot            float64              //赌注池当前总共有多少钱
 	publicCardKeys []int32              //桌面公牌
@@ -100,8 +100,8 @@ func (gr *GameRoom) IsCanJoin() bool {
 
 //IsRoomPwd 房间密码是否一致
 func (gr *GameRoom) IsRoomPwd(pwd string) bool {
-	fmt.Println("pwd :", gr.roomInfo.Pwd)
-	fmt.Println("pwd :", pwd)
+	fmt.Println("房间 pwd为~ :", gr.roomInfo.Pwd)
+	fmt.Println("用户 pwd为~ :", pwd)
 	return gr.roomInfo.Pwd == pwd
 }
 
@@ -109,7 +109,7 @@ func (gr *GameRoom) IsRoomPwd(pwd string) bool {
 func (gr *GameRoom) FindAbleChair() uint32 {
 	for chair, p := range gr.PlayerList {
 		if p == nil {
-			fmt.Println("座位号下标为 ~ :", uint32(chair))
+			fmt.Println("座位号下标为~ :", uint32(chair))
 			return uint32(chair)
 		}
 	}
@@ -176,34 +176,62 @@ func (gr *GameRoom) KickPlayer() {
 	}
 }
 
-//IsPlayerInRoom 用户是否已在房间
-func (gr *GameRoom) IsPlayerInRoom(p *Player) {}
-
 //Banker 庄家
-func (gr *GameRoom) Banker(chair uint32) {
+func (gr *GameRoom) Banker(pos uint32, f func(p *Player) bool) {
 
+	//max := gr.RoomMaxPlayer()
+	//start := int(pos+1) % int(max)
+	//
+	//for i := start; i < int(max); i = (i + 1) % int(max) {
+	//	if gr.PlayerList[i] != nil && gr.PlayerList[pos] != gr.PlayerList[i] {
+	//		return gr.PlayerList[i]
+	//	}
+	//}
+	//return nil
+	volume := gr.RoomMaxPlayer()
+	end := int((volume + int32(pos) - 1) % volume)
+	i := int(pos)
+	for ; i != end; i = (i + 1) % int(volume) {
+		if gr.PlayerList[i] != nil && !f(gr.PlayerList[i]) {
+			return
+		}
+	}
+	// end
+	if gr.PlayerList[i] != nil {
+		f(gr.PlayerList[i])
+	}
 }
 
-//SmallBlind 小盲注
-func (gr *GameRoom) SmallBlind(pos uint8) *Player {
+//Blind 小盲注和大盲注
+func (gr *GameRoom) Blind(pos uint32) *Player {
 
-	//var p []*Player
-	for _, v := range gr.PlayerList {
-		if gr.PlayerList[pos] != v && v != nil {
-			return v
+	max := gr.RoomMaxPlayer()
+	start := int(pos+1) % int(max)
+	for i := start; i < int(max); i = (i + 1) % int(max) {
+		if gr.PlayerList[i] != nil && gr.PlayerList[pos] != gr.PlayerList[i] {
+			return gr.PlayerList[i]
 		}
 	}
 	return nil
 }
 
-//BigBlind 大盲注
-func (gr *GameRoom) BigBlind(button uint8, pos uint8) *Player {
-	for _, v := range gr.PlayerList {
-		if gr.PlayerList[button] != v && gr.PlayerList[pos] != v && v != nil {
-			return v
-		}
-	}
-	return nil
+//betting 小大盲下注
+func (gr *GameRoom) betting(p *Player, blind float64) {
+	//当前行动玩家
+	gr.activePos = p.chair
+	//玩家筹码变动
+	p.chips = p.chips - blind
+	//本轮玩家下注额
+	p.dropedBets = blind
+	//玩家本局总下注额
+	p.dropedBetsSum = p.dropedBetsSum + blind
+	//总筹码变动
+	gr.pot = gr.pot + blind
+
+	//TODO 广播发送玩家盲注金额
+	msg := gr.RspEnterRoom(p)
+	gr.Broadcast(msg)
+
 }
 
 //Running 房间运行
@@ -217,7 +245,7 @@ func (gr *GameRoom) Running() {
 
 	//当前房间人数存在2人及2人以上才开始游戏
 	if n >= 2 {
-		fmt.Println("this room is Running! ~")
+		log.Debug("this room is Running! ~")
 
 		gr.pot = 0
 		gr.minRaise = 0
@@ -228,19 +256,44 @@ func (gr *GameRoom) Running() {
 		gr.gameStep = pb_msg.Enum_GameStep_STEP_WAITING
 
 		//1、产生庄家
-		//var button *Player
-		gr.Banker(gr.Button)
+		var dealer *Player
+		button := gr.Button - 1
+		gr.Banker((button+1)%uint32(gr.RoomMaxPlayer()), func(p *Player) bool {
+			gr.Button = p.chair
+			dealer = p
+			return false
+		})
+		dealer.isButton = true
+		log.Debug("庄家的座位号为 : %v", dealer.chair)
 
-		//2、产生小盲
+		//if banker != nil {
+		//	button = banker
+		//	gr.Button = button.chair
+		//}
+		//TODO 通报本局庄家 是否要写个注册协议
 
-		//3、产生大盲
+		//2、洗牌
 
-		//4、洗牌
+		//3、产生小盲
+		sb := gr.Blind(dealer.chair)
+		sb.blind = pb_msg.Enum_Blind_SMALL_BLIND
+		log.Debug("小盲注座位号为 : %v", sb.chair)
+		//4、小盲注下注
+		gr.betting(sb, float64(gr.SB))
 
-		//5、小大盲注下注
+		//5、产生大盲
+		if n >= 3 {
+			bb := gr.Blind(sb.chair)
+			sb.blind = pb_msg.Enum_Blind_BIG_BLIND
+			log.Debug("大盲注座位号为 : %v", bb.chair)
+			//6、大盲注下注
+			gr.betting(bb, float64(gr.BB))
+		}
 
-		// Round 1：preFlop 翻牌前,下盲注,发底牌
+		// Round 1：preFlop 看手牌,下盲注
 		gr.gameStep = pb_msg.Enum_GameStep_STEP_PRE_FLOP
+
+
 
 		// Round 2：Flop 翻牌圈,牌桌上发3张公牌
 		gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP
@@ -260,7 +313,6 @@ func (gr *GameRoom) Running() {
 	} else {
 		return
 	}
-
 }
 
 //RspEnterRoom 返回客户端房间数据
@@ -278,7 +330,7 @@ func (gr *GameRoom) RspEnterRoom(p *Player) *pb_msg.EnterRoomS2C {
 	er.RoomData.IsStepEnd = gr.isStepEnd
 	er.RoomData.GameStep = gr.gameStep
 	er.RoomData.MinRaise = gr.minRaise
-	er.RoomData.ActivePos = gr.activePos
+	er.RoomData.ActivePos = int32(gr.activePos)
 	er.RoomData.NextStepTs = gr.nextStepTs
 	er.RoomData.Pot = gr.pot
 	er.RoomData.PublicCardKeys = gr.publicCardKeys
@@ -316,7 +368,7 @@ func (gr *GameRoom) RspEnterRoom(p *Player) *pb_msg.EnterRoomS2C {
 }
 
 //PlayerJoin 玩家加入房间
-func (gr *GameRoom) PlayerJoin(p *Player) uint32 {
+func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 
 	// 玩家带入筹码
 	p.chips = gr.DragInRoomChips(p)
@@ -346,17 +398,22 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint32 {
 
 	// 返回前端房间信息
 	roomData := gr.RspEnterRoom(p)
-
 	p.connAgent.WriteMsg(roomData)
 	fmt.Println("this room data ~ :", roomData)
 
-	return p.chair
+	return uint8(p.chair)
 }
 
 //ExitFromRoom 玩家从房间退出
 func (gr *GameRoom) ExitFromRoom(p *Player) {
 	gr.curPlayerNum--
 	fmt.Println("ExitFromRoom curPlayerNum ~ :", gr.curPlayerNum)
+
+	//玩家退出房间, 将剩余的筹码转换为玩家金额
+	p.balance = p.chips
+	p.chips = 0
+	log.Debug("玩家剩余余额 : %v", p.balance)
+
 	gr.PlayerList[p.chair] = nil
 	if gr.curPlayerNum == 0 {
 		fmt.Println("Room PlayerNum is 0，so delete this room! ~ ")

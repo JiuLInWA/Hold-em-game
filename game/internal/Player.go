@@ -17,6 +17,8 @@ type CardSuitData struct {
 
 //定义一个玩家
 type Player struct {
+	//连接唯一标识
+	ConnId string
 	//玩家的连接代理
 	connAgent gate.Agent
 	//玩家ID
@@ -27,6 +29,8 @@ type Player struct {
 	index uint32
 	//客户端延迟
 	uClientDelay uint16
+
+	TimerNow int64
 
 	name    string  //玩家昵称
 	headImg string  //玩家头像
@@ -73,52 +77,65 @@ func (p *Player) Init() {
 	p.isAllIn = false
 	p.isSelf = false
 	p.resultMoney = 0
-
 	p.chips = 0
 	p.room = nil
+	p.uClientDelay = 0
+}
+
+//StartBreathe  从共享变量获取数据
+func StartBreathe(id string) {
+	//ticker := time.NewTicker(time.Second * 3)
+	go func(id string) {
+		for { //循环
+			//<-ticker.C
+			time.Sleep(time.Second)
+			p := ConnPlayerMap[id]
+			p.uClientDelay++
+			fmt.Println(fmt.Sprintf("定时器:::ConnId %v 次数 %v ", p.ConnId, p.uClientDelay))
+			//已经超过9秒没有收到客户端心跳，踢掉好了
+			if p.uClientDelay > 15 {
+				fmt.Println(fmt.Sprintf("定时器:::ConnId %v 次数 %v %s", p.ConnId, p.uClientDelay, "关闭连接！"))
+				//断开连接,删除用户信息
+				p.PlayerExitRoom()
+				DeletePlayer(p)
+
+				p.connAgent.Destroy()
+				return
+			}
+		}
+	}(id)
+}
+
+//StartBreathe 开始呼吸
+func (p *Player) StartBreathe() {
+	ticker := time.NewTicker(time.Second * 3)
+	go func() {
+		for { //循环
+			<-ticker.C
+			p.uClientDelay++
+			fmt.Println("User Id :", p.ID, " 我在呼吸PONG ~ :", p.uClientDelay)
+
+			//已经超过9秒没有收到客户端心跳，踢掉好了
+			if p.uClientDelay > 3 {
+				//断开连接,删除用户信息
+				p.PlayerExitRoom()
+				DeletePlayer(p)
+
+				p.connAgent.Destroy()
+				return
+			}
+		}
+	}()
+}
+
+//onClientBreathe 客户端呼吸，长时间未执行该函数可能已经断网，将主动踢掉
+func (p *Player) onClientBreathe() {
 	p.uClientDelay = 0
 }
 
 //保存用户数据
 func (p *Player) Save() {
 
-}
-
-//TODO 用户断线重连问题
-//TODO 判断用户是否在当前房间,这个需要遍历所有房间。。。
-//StartBreathe 开始呼吸 这里提供函数去和中心
-func (p *Player) StartBreathe() {
-	ticker := time.NewTicker(time.Second * 3)
-
-	func() {
-		for { //循环
-			<-ticker.C
-			p.ActiveBreathe()
-			//if b == true {
-			//	return
-			//}
-		}
-	}()
-}
-
-//主动呼吸
-func (p *Player) ActiveBreathe() {
-	p.uClientDelay++
-
-	if p.uClientDelay > 3 {
-		//log.Debug("Player close websocket~!!!!")
-		//DeletePlayer(p)
-		//p.PlayerExitRoom()
-
-		//已经超过9秒没有收到客户端心跳，踢掉好了
-		p.connAgent.Destroy()
-
-	}
-}
-
-//监测用户是否已经断线, 服务器写个心跳包
-func (p *Player) onClientBreathe() {
-	p.uClientDelay = 0
 }
 
 //玩家向客户端发送消息  对于离线玩家需要把数据保存到会话数据库中
@@ -156,7 +173,7 @@ func CreatePlayer() *Player {
 //PlayerRegister 以id进行玩家注册，每个玩家只能有唯一ID，如果有相同的ID注册 需要关闭之前相同ID的玩家
 func PlayerRegister(ID string, neo *Player) {
 	//先检查该ID玩家是否已经注册过
-	fmt.Println("PlayerRegister", ID)
+	fmt.Println("PlayerRegister ~ :", ID)
 	oldp, ok := mapUserID2Player[ID]
 	if ok {
 		fmt.Println(ID, "have")
@@ -198,9 +215,9 @@ func DeletePlayer(p *Player) {
 	if ok && saveone.index == p.index {
 		// 是当前客户端才删除
 		delete(mapUserID2Player, p.ID)
-		fmt.Println("我进去了")
+		fmt.Println("我进去了~")
 	} else {
-		fmt.Println("我没进去")
+		fmt.Println("我没进去~")
 	}
 	// 有玩家退出时也保存一遍
 	//gStat.save()
@@ -210,12 +227,12 @@ func DeletePlayer(p *Player) {
 
 //PlayerExitRoom 玩家退出房间
 func (p *Player) PlayerExitRoom() {
-	fmt.Println(p.ID, "~ Player from Room Exit")
-
-	fmt.Println("room", p.room)
+	log.Debug("Player from Room Exit ~: %v", p.ID)
 
 	if p.room != nil {
 		p.room.ExitFromRoom(p)
 		p.room = nil
+	} else {
+		log.Debug("Exit Room , but not found Player Room")
 	}
 }

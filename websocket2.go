@@ -13,7 +13,7 @@ import (
 )
 
 //10.63.60.96
-const Host1 = "10.63.60.96"
+const Host1 = "47.75.183.211"
 const TCPPort1 = "8888"
 const WSPort1 = "8889"
 

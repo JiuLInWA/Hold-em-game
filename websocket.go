@@ -49,9 +49,7 @@ func tcpMsg() []byte {
 func wsMsg() []byte {
 	// 记得一定要对应消息号 在FindMsgId()函数
 	message := &pb_msg.LoginC2S{
-		LoginInfo: &pb_msg.LoginInfo{
-			Id: "tomas",
-		},
+
 	}
 
 	payload, err := proto.Marshal(message)
@@ -139,6 +137,8 @@ func wsTest() {
 	}
 }
 
+
+
 func ws2Test() {
 	c := NewWebsocketClient(Host+":"+WSPort, "")
 	err := c.SendMessage(wsMsg())
@@ -178,3 +178,7 @@ func (c *Client) SendMessage(body []byte) error {
 	fmt.Println("写入完成")
 	return nil
 }
+
+
+
+

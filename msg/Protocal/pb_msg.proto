@@ -10,6 +10,7 @@ enum Enum_SvrTipType {
 
 //--0
 message Ping_c2s {
+
 }
 
 //--1
@@ -105,7 +106,7 @@ enum Enum_Blind {
 // 游戏阶段
 enum Enum_GameStep {
     STEP_WAITING = 0;   // 等待牌局开始
-    STEP_PRE_FLOP = 1;  // 翻牌前，下盲注，发底牌
+    STEP_PRE_FLOP = 1;  // 翻牌前，看手牌,下盲注
     STEP_FLOP = 2;      // 翻牌圈，牌桌上发3张公牌
     STEP_TURN = 3;      // 转牌圈，牌桌上发第4张公共牌
     STEP_RIVER = 4;     // 河牌圈，牌桌上发第5张公共牌
