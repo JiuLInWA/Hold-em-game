@@ -5,7 +5,6 @@ import (
 	"github.com/name5566/leaf/gate"
 	"github.com/name5566/leaf/log"
 	pb_msg "server/msg/Protocal"
-	"time"
 )
 
 // 牌型数据
@@ -81,39 +80,47 @@ func (p *Player) Init() {
 	p.room = nil
 	p.uClientDelay = 0
 }
-
-//StartBreathe 开始呼吸
-func (p *Player) StartBreathe() {
-	ticker := time.NewTicker(time.Second * 3)
-	go func() {
-		for { //循环
-			<-ticker.C
-			p.uClientDelay++
-			fmt.Println("用户id", p.ID, "uClientDelay++", p.uClientDelay)
-			if p.uClientDelay >= 6 {
-				fmt.Println("干掉多余的线程 ~")
-				return
-			}
-			select {
-			case _, ok := <-ch:
-				if !ok {
-					//TODO
-					fmt.Println("进来啦啦啦啦啦啦~")
-					return
-				}
-				break
-			default:
-				//已经超过9秒没有收到客户端心跳，踢掉好了
-				if p.uClientDelay > 3 {
-					fmt.Println("用户",p.ID,"心跳超时啦啦啦~~~")
-					close(ch)
-					p.connAgent.Destroy()
-					return
-				}
-			}
-		}
-	}()
-}
+//
+////StartBreathe 开始呼吸
+//func (p *Player) StartBreathe() {
+//	ticker := time.NewTicker(time.Second * 3)
+//	go func() {
+//		for { //循环
+//			<-ticker.C
+//			p.uClientDelay++
+//			fmt.Println("用户id", p.ID, "uClientDelay++", p.uClientDelay)
+//			//if p.uClientDelay >= 6 {
+//			//	fmt.Println("干掉多余的线程 ~")
+//			//	return
+//			//}
+//
+//			var buf [64]byte
+//			n := runtime.Stack(buf[:], false)
+//			idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
+//			id, _ := strconv.Atoi(idField)
+//			fmt.Println("线程id ~~~~~~:",id)
+//
+//			select {
+//			case _, ok := <-ch:
+//				if !ok {
+//					//TODO
+//					fmt.Println("进来啦啦啦啦啦啦~")
+//					return
+//				}
+//				break
+//			default:
+//				//已经超过9秒没有收到客户端心跳，踢掉好了
+//				if p.uClientDelay > 3 {
+//					fmt.Println("用户",p.ID,"心跳超时啦啦啦~~~")
+//					close(ch)
+//
+//					p.connAgent.Destroy()
+//					return
+//				}
+//			}
+//		}
+//	}()
+//}
 
 //onClientBreathe 客户端呼吸，长时间未执行该函数可能已经断网，将主动踢掉
 func (p *Player) onClientBreathe() {

@@ -12,9 +12,9 @@ import (
 type RoomStat uint8
 
 const (
-	emRoomStateNone  RoomStat = 0 //房间初始状态
-	emRoomStateRun   RoomStat = 1 //房间正在运行
-	emRoomStateClose RoomStat = 2 //房间已关闭并摧毁
+	emRoomStateNone RoomStat = 0 //房间初始状态
+	emRoomStateRun  RoomStat = 1 //房间正在运行
+	emRoomStateOver RoomStat = 2 //房间结束游戏
 )
 
 type RoomInfo struct {
@@ -305,7 +305,7 @@ func (gr *GameRoom) Running() {
 		gr.gameStep = pb_msg.Enum_GameStep_STEP_SHOW_DOWN
 
 		//6、游戏结束，停留5秒，重新开始游戏
-		gr.Status = emRoomStateClose
+		gr.Status = emRoomStateOver
 
 	} else {
 		return
@@ -414,7 +414,6 @@ func (gr *GameRoom) ExitFromRoom(p *Player) {
 	gr.PlayerList[p.chair] = nil
 	if gr.curPlayerNum == 0 {
 		fmt.Println("Room PlayerNum is 0，so delete this room! ~ ")
-		gr.Status = emRoomStateClose
 
 		gameHall.DeleteRoom(p.room.roomInfo.RoomId)
 	} else {
