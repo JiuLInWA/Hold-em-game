@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/name5566/leaf/gate"
 	pb_msg "server/msg/Protocal"
 	"time"
@@ -17,9 +16,7 @@ func init() {
 
 }
 
-var ch chan int
-
-var ConnPlayerMap = make(map[string]*Player, 0)
+var ch chan *Player
 
 func rpcNewAgent(args []interface{}) {
 	a := args[0].(gate.Agent)
@@ -31,46 +28,9 @@ func rpcNewAgent(args []interface{}) {
 	//将玩家本身作为userData附加到agent上，避免后面收到信息再查找玩家
 	p.connAgent.SetUserData(p)
 
-	//这个全局，不用，此处面对连接
-	uuidStr := uuid.New().String()
-	p.ConnId = uuidStr
-	ConnPlayerMap[uuidStr] = p
-	StartBreathe(uuidStr)
+	//开始呼吸
+	p.StartBreathe()
 
-	//ch = make(chan int)
-	//
-	//go func(chan int, string) {
-	//	lastTime := time.Now().Unix()
-	//	pp := ConnPlayerMap[p.ConnId]
-	//	for {
-	//		var (
-	//			x  int
-	//			ok bool
-	//		)
-	//		select {
-	//		case x, ok = <-ch:
-	//			if !ok {
-	//				fmt.Println("通道关闭了")
-	//				return
-	//			}
-	//			fmt.Println("pong ~ :", x)
-	//			//每次心跳更新最新当前时间
-	//			lastTime = time.Now().Unix()
-	//			break
-	//		default:
-	//			curTime := time.Now().Unix()
-	//			if curTime-lastTime > 10 {
-	//				fmt.Println("超时时间为~ :", curTime-lastTime, "秒")
-	//				close(ch)
-	//				//断开连接,删除用户信息
-	//				pp.PlayerExitRoom()
-	//				pp.connAgent.Destroy()
-	//				DeletePlayer(pp)
-	//				return
-	//			}
-	//		}
-	//	}
-	//}(ch, p.ConnId)
 
 }
 
@@ -84,23 +44,14 @@ func rpcCloseAgent(args []interface{}) {
 func rpcPing(args []interface{}) {
 	a := args[1].(gate.Agent)
 
-	//defer func() {
-	//	if recover() == nil {
-	//		return
-	//	}
-	//}()
-	//timerNow := time.Now().Unix()
-	//ch <- int(timerNow)
-	//
-	//fmt.Println("ping ~ :", timerNow)
-
 	p, ok := a.UserData().(*Player)
-	fmt.Println("进来一个ping", p.ConnId)
-	ConnPlayerMap[p.ConnId].uClientDelay = 0
-	fmt.Println(fmt.Sprintf("我是Ping:::ConnId %v 次数 %v ", p.ConnId, p.uClientDelay))
 	if ok {
-		//p.onClientBreathe()
-		//fmt.Println("PING uClientDelay :", p.uClientDelay)
+		ch = make(chan *Player)
+		ch <- p
+
+		p.onClientBreathe()
+
+		fmt.Println("Ping~~~ id", p.ID, "------------", p.uClientDelay)
 
 		pingTime := time.Now().UnixNano() / 1e6
 

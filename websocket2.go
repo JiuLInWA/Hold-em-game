@@ -102,9 +102,9 @@ func findMsgID1(t string) uint16 {
 
 	if id, ok := msgType2ID[t]; ok {
 		return id
-	}
+}
 
-	return 1024
+return 1024
 }
 
 func tcpTest1() {

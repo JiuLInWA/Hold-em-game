@@ -264,13 +264,12 @@ func (gr *GameRoom) Running() {
 			return false
 		})
 		dealer.isButton = true
-		log.Debug("庄家的座位号为 : %v", dealer.chair)
+		dealer.isSelf = true
 
-		//if banker != nil {
-		//	button = banker
-		//	gr.Button = button.chair
-		//}
-		//TODO 通报本局庄家 是否要写个注册协议
+		//获取庄家数据，进行广播，因为重新开始会有多名玩家
+		enter := gr.RspEnterRoom(dealer)
+		gr.Broadcast(enter)
+		log.Debug("庄家的座位号为 : %v", dealer.chair)
 
 		//2、洗牌
 
@@ -292,8 +291,6 @@ func (gr *GameRoom) Running() {
 
 		// Round 1：preFlop 看手牌,下盲注
 		gr.gameStep = pb_msg.Enum_GameStep_STEP_PRE_FLOP
-
-
 
 		// Round 2：Flop 翻牌圈,牌桌上发3张公牌
 		gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP

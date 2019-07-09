@@ -82,30 +82,6 @@ func (p *Player) Init() {
 	p.uClientDelay = 0
 }
 
-//StartBreathe  从共享变量获取数据
-func StartBreathe(id string) {
-	//ticker := time.NewTicker(time.Second * 3)
-	go func(id string) {
-		for { //循环
-			//<-ticker.C
-			time.Sleep(time.Second)
-			p := ConnPlayerMap[id]
-			p.uClientDelay++
-			fmt.Println(fmt.Sprintf("定时器:::ConnId %v 次数 %v ", p.ConnId, p.uClientDelay))
-			//已经超过9秒没有收到客户端心跳，踢掉好了
-			if p.uClientDelay > 15 {
-				fmt.Println(fmt.Sprintf("定时器:::ConnId %v 次数 %v %s", p.ConnId, p.uClientDelay, "关闭连接！"))
-				//断开连接,删除用户信息
-				p.PlayerExitRoom()
-				DeletePlayer(p)
-
-				p.connAgent.Destroy()
-				return
-			}
-		}
-	}(id)
-}
-
 //StartBreathe 开始呼吸
 func (p *Player) StartBreathe() {
 	ticker := time.NewTicker(time.Second * 3)
@@ -113,16 +89,27 @@ func (p *Player) StartBreathe() {
 		for { //循环
 			<-ticker.C
 			p.uClientDelay++
-			fmt.Println("User Id :", p.ID, " 我在呼吸PONG ~ :", p.uClientDelay)
-
-			//已经超过9秒没有收到客户端心跳，踢掉好了
-			if p.uClientDelay > 3 {
-				//断开连接,删除用户信息
-				p.PlayerExitRoom()
-				DeletePlayer(p)
-
-				p.connAgent.Destroy()
+			fmt.Println("用户id", p.ID, "uClientDelay++", p.uClientDelay)
+			if p.uClientDelay >= 6 {
+				fmt.Println("干掉多余的线程 ~")
 				return
+			}
+			select {
+			case _, ok := <-ch:
+				if !ok {
+					//TODO
+					fmt.Println("进来啦啦啦啦啦啦~")
+					return
+				}
+				break
+			default:
+				//已经超过9秒没有收到客户端心跳，踢掉好了
+				if p.uClientDelay > 3 {
+					fmt.Println("用户",p.ID,"心跳超时啦啦啦~~~")
+					close(ch)
+					p.connAgent.Destroy()
+					return
+				}
 			}
 		}
 	}()
