@@ -5,6 +5,7 @@ import (
 	"github.com/name5566/leaf/gate"
 	"github.com/name5566/leaf/log"
 	pb_msg "server/msg/Protocal"
+	"time"
 )
 
 // 牌型数据
@@ -16,14 +17,12 @@ type CardSuitData struct {
 
 //定义一个玩家
 type Player struct {
-	//连接唯一标识
-	ConnId string
 	//玩家的连接代理
 	connAgent gate.Agent
 	//玩家ID
 	ID string
 	//玩家座位号
-	chair uint32
+	chair int32
 	//全局索引
 	index uint32
 	//客户端延迟
@@ -62,7 +61,7 @@ func (p *Player) Init() {
 
 	//TODO 用户登录创建玩家初始化设定，后面根据拿去中心数据做修改
 	p.name = "Hold-em"
-	p.headImg = "https://www.andreyapopov.com/Portfolio/Conceptual/1"
+	p.headImg = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRB45_5R6pdUp4xVFZ83dcA7BJkiSYjW8h6Z92uJo9WBkhbAMgN"
 	p.balance = 4000
 
 	p.IsRaised = false
@@ -80,47 +79,49 @@ func (p *Player) Init() {
 	p.room = nil
 	p.uClientDelay = 0
 }
-//
-////StartBreathe 开始呼吸
-//func (p *Player) StartBreathe() {
-//	ticker := time.NewTicker(time.Second * 3)
-//	go func() {
-//		for { //循环
-//			<-ticker.C
-//			p.uClientDelay++
-//			fmt.Println("用户id", p.ID, "uClientDelay++", p.uClientDelay)
-//			//if p.uClientDelay >= 6 {
-//			//	fmt.Println("干掉多余的线程 ~")
-//			//	return
-//			//}
-//
-//			var buf [64]byte
-//			n := runtime.Stack(buf[:], false)
-//			idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
-//			id, _ := strconv.Atoi(idField)
-//			fmt.Println("线程id ~~~~~~:",id)
-//
-//			select {
-//			case _, ok := <-ch:
-//				if !ok {
-//					//TODO
-//					fmt.Println("进来啦啦啦啦啦啦~")
-//					return
-//				}
-//				break
-//			default:
-//				//已经超过9秒没有收到客户端心跳，踢掉好了
-//				if p.uClientDelay > 3 {
-//					fmt.Println("用户",p.ID,"心跳超时啦啦啦~~~")
-//					close(ch)
-//
-//					p.connAgent.Destroy()
-//					return
-//				}
-//			}
-//		}
-//	}()
-//}
+
+//StartBreathe 开始呼吸
+func (p *Player) StartBreathe() {
+	ticker := time.NewTicker(time.Second * 3)
+	go func() {
+		for { //循环
+			<-ticker.C
+			p.uClientDelay++
+			if p.uClientDelay >= 5 {
+				return
+			}
+			fmt.Println(p.ID, "呼吸啦 uClientDelay++", p.uClientDelay)
+			select {
+			case _, ok := <-ch:
+				if !ok {
+					fmt.Println("通道关闭啦~~~")
+					return
+				}
+				break
+			default:
+				//已经超过9秒没有收到客户端心跳，踢掉好了
+				if p.uClientDelay > 3 {
+					fmt.Println("用户", p.ID, "心跳超时啦啦啦~~~")
+
+					if p.room != nil {
+						if p.room.activePos == p.chair {
+							//TODO 直接弃牌，设为观战玩家
+
+						}
+						//TODO 如果用户断线，其他玩家可不可以加入房间
+						enter := p.room.RspEnterRoom(p)
+						//未入座 座位为 -1
+						p.chair = -1
+						p.room.Broadcast(enter)
+					}
+					close(ch)
+					p.connAgent.Destroy()
+					return
+				}
+			}
+		}
+	}()
+}
 
 //onClientBreathe 客户端呼吸，长时间未执行该函数可能已经断网，将主动踢掉
 func (p *Player) onClientBreathe() {

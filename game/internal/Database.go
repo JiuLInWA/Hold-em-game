@@ -79,7 +79,7 @@ func InsertUserInfoData(m *pb_msg.LoginC2S) (pb_msg.PlayerInfo, error) {
 	playerInfo := &pb_msg.PlayerInfo{
 		Id:      m.LoginInfo.Id,
 		Name:    m.LoginInfo.Id,
-		HeadImg: "https://www.andreyapopov.com/Portfolio/Conceptual/1",
+		HeadImg: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRB45_5R6pdUp4xVFZ83dcA7BJkiSYjW8h6Z92uJo9WBkhbAMgN",
 		Balance: 4000,
 	}
 

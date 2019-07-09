@@ -130,19 +130,21 @@ func (gh *GameHall) PlayerJoinRoom(p *Player, rid string, pwd string) uint8 {
 }
 
 //GetPlayerRoomInfo 获取玩家房间信息
-func (gh *GameHall) GetPlayerRoomInfo(p *Player) {
+func (gh *GameHall) GetPlayerRoomInfo(p *Player) *GameRoom {
 	for _, v := range gh.roomList {
 		if v != nil {
 			for _, player := range v.PlayerList {
 				if player != nil {
 					if player.ID == p.ID {
-						a := v.RspEnterRoom(p)
+						a := v.RspEnterRoom(player)
 						p.connAgent.WriteMsg(a)
+						return player.room
 					}
 				}
 			}
 		}
 	}
+	return nil
 }
 
 //DeleteRoom 删除房间信息

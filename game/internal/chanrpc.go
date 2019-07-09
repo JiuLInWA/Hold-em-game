@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"github.com/name5566/leaf/gate"
+	"github.com/name5566/leaf/log"
 	pb_msg "server/msg/Protocal"
 	"time"
 )
@@ -16,7 +17,7 @@ func init() {
 
 }
 
-//var ch chan *Player
+var ch chan *Player
 
 func rpcNewAgent(args []interface{}) {
 	a := args[0].(gate.Agent)
@@ -24,18 +25,24 @@ func rpcNewAgent(args []interface{}) {
 	fmt.Println("rpcNewAgent ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 	p := CreatePlayer()
 	p.connAgent = a
+
 	//将玩家本身作为userData附加到agent上，避免后面收到信息再查找玩家
 	p.connAgent.SetUserData(p)
 
 	//开始呼吸
-	//p.StartBreathe()
+	p.StartBreathe()
 
 }
 
 func rpcCloseAgent(args []interface{}) {
 	a := args[0].(gate.Agent)
-	_ = a
-
+	//断开连接，删除用户信息，用户链接设为空
+	p, ok := a.UserData().(*Player)
+	if ok {
+		log.Debug("Player close websocket~! : %v", p.ID)
+		DeletePlayer(p)
+	}
+	a.SetUserData(nil)
 }
 
 // 心跳检测
@@ -44,8 +51,8 @@ func rpcPing(args []interface{}) {
 
 	p, ok := a.UserData().(*Player)
 	if ok {
-		//ch = make(chan *Player)
-		//ch <- p
+		ch = make(chan *Player)
+		ch <- p
 
 		p.onClientBreathe()
 
@@ -87,8 +94,8 @@ func rpcUserLogin(args []interface{}) {
 	fmt.Println("rpcUserLogin data ~ :", rsp)
 	a.WriteMsg(rsp)
 
-	//判断用户是否断线登录，通过判断用户房间是否为空，不为空，则返回房间信息
 	//TODO 占时测试用~ 这样遍历所有房间，速度会变慢
-	gameHall.GetPlayerRoomInfo(p)
-
+	//判断用户是否断线登录，通过判断用户房间是否为空，不为空，则返回房间信息
+	room := gameHall.GetPlayerRoomInfo(p)
+	p.room = room
 }
