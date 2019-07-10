@@ -4,20 +4,14 @@ import (
 	"fmt"
 	"github.com/name5566/leaf/gate"
 	"github.com/name5566/leaf/log"
-	pb_msg "server/msg/Protocal"
-	"time"
 )
 
 func init() {
 	skeleton.RegisterChanRPC("NewAgent", rpcNewAgent)
 	skeleton.RegisterChanRPC("CloseAgent", rpcCloseAgent)
 
-	skeleton.RegisterChanRPC("Ping", rpcPing)
-	skeleton.RegisterChanRPC("UserLogin", rpcUserLogin)
-
 }
 
-var ch chan *Player
 
 func rpcNewAgent(args []interface{}) {
 	a := args[0].(gate.Agent)
@@ -39,63 +33,9 @@ func rpcCloseAgent(args []interface{}) {
 	//断开连接，删除用户信息，用户链接设为空
 	p, ok := a.UserData().(*Player)
 	if ok {
-		log.Debug("Player close websocket~! : %v", p.ID)
+		log.Debug("Player close websocket ~~~ : %v", p.ID)
 		DeletePlayer(p)
 	}
 	a.SetUserData(nil)
 }
 
-// 心跳检测
-func rpcPing(args []interface{}) {
-	a := args[1].(gate.Agent)
-
-	p, ok := a.UserData().(*Player)
-	if ok {
-		ch = make(chan *Player)
-		ch <- p
-
-		p.onClientBreathe()
-
-		fmt.Println("Ping~~~ id", p.ID, "------------", p.uClientDelay)
-
-		pingTime := time.Now().UnixNano() / 1e6
-
-		pong := &pb_msg.PongS2C{
-			ServerTime: pingTime,
-		}
-		// 给发送者回应一个 Hello 消息
-		a.WriteMsg(pong)
-	}
-}
-
-func rpcUserLogin(args []interface{}) {
-	m := args[0].(*pb_msg.LoginC2S)
-	a := args[1].(gate.Agent)
-	p, ok := a.UserData().(*Player)
-	if ok {
-		p.ID = m.GetLoginInfo().GetId()
-		PlayerRegister(p.ID, p)
-	}
-
-	//查看数据库用户ID是否存在，存在直接数据库返回数据,不存在插入数据在返回
-	data, err := FindUserInfoData(m)
-	if err != nil {
-		fmt.Println("not FindUserInfoData:", err)
-		return
-	}
-
-	rsp := &pb_msg.LoginResultS2C{}
-	rsp.PlayerInfo = new(pb_msg.PlayerInfo)
-	rsp.PlayerInfo.Id = data.Id
-	rsp.PlayerInfo.Name = data.Name
-	rsp.PlayerInfo.HeadImg = data.HeadImg
-	rsp.PlayerInfo.Balance = data.Balance
-
-	fmt.Println("rpcUserLogin data ~ :", rsp)
-	a.WriteMsg(rsp)
-
-	//TODO 占时测试用~ 这样遍历所有房间，速度会变慢
-	//判断用户是否断线登录，通过判断用户房间是否为空，不为空，则返回房间信息
-	room := gameHall.GetPlayerRoomInfo(p)
-	p.room = room
-}

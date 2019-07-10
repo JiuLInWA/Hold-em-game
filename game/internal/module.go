@@ -19,7 +19,7 @@ func (m *Module) OnInit() {
 	gameHall.Init()
 	InitPlayerMap()
 	jsonData()
-
+	initMongoDB()
 }
 
 func (m *Module) OnDestroy() {

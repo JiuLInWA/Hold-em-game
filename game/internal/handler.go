@@ -1,15 +1,19 @@
 package internal
 
 import (
+	"fmt"
 	"github.com/name5566/leaf/gate"
 	"github.com/name5566/leaf/log"
 	"reflect"
 	pb_msg "server/msg/Protocal"
+	"time"
 )
 
 func init() {
 	//向当前模块（game 模块）注册 Test 消息的消息处理函数 handleTest
 	//handler(&pb_msg.Test{},handleTest)
+	handler(&pb_msg.PingC2S{}, handlePing)
+	handler(&pb_msg.LoginC2S{}, handleLogin)
 	handler(&pb_msg.QuickStartC2S{}, handleQuickStart)
 	handler(&pb_msg.CreateRoomC2S{}, handleCreatRoom)
 	handler(&pb_msg.JoinRoomC2S{}, handleJoinRoom)
@@ -19,6 +23,67 @@ func init() {
 // 异步处理
 func handler(m interface{}, h interface{}) {
 	skeleton.RegisterChanRPC(reflect.TypeOf(m), h)
+}
+
+var ch chan *Player
+
+func handlePing(args []interface{}) {
+	m := args[0].(*pb_msg.PingC2S)
+	a := args[1].(gate.Agent)
+
+	log.Debug("Hello : %v", m)
+
+	p, ok := a.UserData().(*Player)
+	if ok {
+		ch = make(chan *Player)
+		ch <- p
+
+		p.onClientBreathe()
+		fmt.Println("Ping~~~ id", p.ID, "------------", p.uClientDelay)
+
+		pingTime := time.Now().UnixNano() / 1e6
+
+		pong := &pb_msg.PongS2C{
+			ServerTime: pingTime,
+		}
+		// 给发送者回应一个 Hello 消息
+		a.WriteMsg(pong)
+	}
+}
+
+func handleLogin(args []interface{}) {
+	m := args[0].(*pb_msg.LoginC2S)
+	a := args[1].(gate.Agent)
+
+	log.Debug("handleLogin : %v", m.LoginInfo.Id)
+
+	p, ok := a.UserData().(*Player)
+	if ok {
+		p.ID = m.GetLoginInfo().GetId()
+		PlayerRegister(p.ID, p)
+	}
+
+	//查看数据库用户ID是否存在，存在直接数据库返回数据,不存在插入数据在返回
+	data, err := FindUserInfo(m)
+	if err != nil {
+		fmt.Println("not FindUserInfoData:", err)
+		return
+	}
+
+	rsp := &pb_msg.LoginResultS2C{}
+	rsp.PlayerInfo = new(pb_msg.PlayerInfo)
+	rsp.PlayerInfo.Id = data.Id
+	rsp.PlayerInfo.Name = data.Name
+	rsp.PlayerInfo.HeadImg = data.HeadImg
+	rsp.PlayerInfo.Balance = data.Balance
+
+	fmt.Println("UserLogin data ~ :", rsp)
+	a.WriteMsg(rsp)
+
+	//TODO 占时测试用~ 这样遍历所有房间，速度会变慢
+	//判断用户是否断线登录，通过判断用户房间是否为空，不为空，则返回房间信息
+	room := gameHall.GetPlayerRoomInfo(p)
+	p.room = room
 }
 
 func handleQuickStart(args []interface{}) {

@@ -6,7 +6,6 @@ import (
 	"server/conf"
 	"server/game"
 	"server/gate"
-	"server/login"
 )
 
 func main() {
@@ -21,6 +20,6 @@ func main() {
 	leaf.Run(
 		game.Module,
 		gate.Module,
-		login.Module,
+		//login.Module,
 	)
 }

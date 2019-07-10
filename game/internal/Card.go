@@ -16,3 +16,4 @@ const (
 	STRAIGHT_FLUSH  CardSuit = 9  // 同花顺
 	ROYAL_FLUSH     CardSuit = 10 // 皇家同花顺
 )
+
