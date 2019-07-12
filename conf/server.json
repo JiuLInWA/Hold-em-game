@@ -1,0 +1,12 @@
+{
+  "LogLevel": "debug",
+  "LogPath": "",
+  "WSAddr": "0.0.0.0:8889",
+  "TCPAddr": "0.0.0.0:8888",
+  "MaxConnNum": 20000,
+
+  "MongoDBAddr": "127.0.0.1:27017",
+  "MongoDBAuth": "",
+  "MongoDBUser": "root",
+  "MongoDBPwd": "123456"
+}
