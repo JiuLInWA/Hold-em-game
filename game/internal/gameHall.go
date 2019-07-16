@@ -9,7 +9,7 @@ import (
 )
 
 
-var userRoomMap map[string]*GameRoom
+//var userRoomMap map[string]*GameRoom
 
 //GameHall 描述游戏大厅，目前一个游戏就一个大厅
 type GameHall struct {
@@ -17,11 +17,9 @@ type GameHall struct {
 	roomList    []*GameRoom
 }
 
-//用于用户重新登陆，获取房间信息
-
 //Init 大厅初始化~！
 func (gh *GameHall) Init() {
-	gh.maxPlayer = 2000
+	gh.maxPlayer = 5000
 	fmt.Printf("this is gamehall init~!!it can support %d run~\n", gh.maxPlayer)
 }
 

@@ -115,11 +115,11 @@ enum Enum_GameStep {
 
 // 本轮玩家表态
 enum Enum_PlayerStatus {
-    STATUS_WAITING = 0;   // 尚未表态
-    STATUS_RAISE = 1;     // 加注
-    STATUS_CALL = 2;      // 跟牌
-    STATUS_CHECK = 3;     // 过牌
-    STATUS_FOLD = 4;      // 弃牌
+    STATUS_WAITING = 0; // 尚未表态
+    STATUS_RAISE = 1; // 加注
+    STATUS_CALL = 2; // 跟牌
+    STATUS_CHECK = 3; // 过牌
+    STATUS_FOLD = 4; // 弃牌
     STATUS_SHOW_DOWN = 5; // 摊牌
 }
 
@@ -207,3 +207,40 @@ message ExitRoom_c2s {
 message ExitRoom_s2c {
     PlayerInfo playerInfo = 1;
 }
+
+//--11 玩家加入
+message OtherPlayerJoin_s2c {
+    PlayerData playerData = 1; //新加入的玩家
+}
+
+//--12 玩家离场（观战也算离场，只要不在桌上）
+message OtherPlayerLeave_s2c {
+    int32 position = 1; //离开的玩家离场前的座位号
+    double pot = 2; //玩家离场时如果有下注，则注码要充公到pot里， 所以要刷新pot数据
+}
+
+//--13 玩家入座 请求
+message SitDown_c2s {
+    int32 position = 1;
+}
+
+//--14 玩家入座
+message SitDown_s2c {
+    RoomData roomData = 1;
+}
+
+//--15 玩家离座观战 请求
+message StandUp_c2s {
+
+}
+
+//--16 玩家离座观战
+message StandUp_s2c {
+    RoomData roomData = 1;
+}
+
+//--17 游戏阶段变更
+message GameStepChange_s2c {
+    RoomData roomData = 1;
+}
+

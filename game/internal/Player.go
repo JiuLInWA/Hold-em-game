@@ -49,11 +49,9 @@ type Player struct {
 	isSelf        bool                     //是否玩家自己
 	resultMoney   float64                  //本局游戏结束时收到的钱
 
-	chips float64   //带入筹码
-	room  *GameRoom //所在房间
-
-	//cards Cards	//玩家牌型
-	//Bet uint32	//当前下注
+	chips    float64   //带入筹码
+	room     *GameRoom //所在房间
+	IsOnLine bool      //是否在线
 }
 
 func (p *Player) Init() {
@@ -79,6 +77,7 @@ func (p *Player) Init() {
 	p.resultMoney = 0
 	p.chips = 0
 	p.room = nil
+	p.IsOnLine = true
 	p.uClientDelay = 0
 }
 
@@ -89,37 +88,29 @@ func (p *Player) StartBreathe() {
 		for { //循环
 			<-ticker.C
 			p.uClientDelay++
-			if p.uClientDelay >= 5 {
-				return
-			}
-			fmt.Println(p.ID, "呼吸啦 uClientDelay++", p.uClientDelay)
-			select {
-			case _, ok := <-ch:
-				if !ok {
-					fmt.Println("通道关闭啦~~~")
-					return
-				}
-				break
-			default:
-				//已经超过9秒没有收到客户端心跳，踢掉好了
-				if p.uClientDelay > 3 {
-					fmt.Println("用户", p.ID, "心跳超时啦啦啦~~~")
+			fmt.Println("用户 ~ :", p.ID, " p.uClientDelay++ :", p.uClientDelay)
+			//已经超过9秒没有收到客户端心跳，踢掉好了
+			if p.uClientDelay > 3 {
+				if p.room != nil {
+					if p.room.activePos == p.chair {
+						//TODO 直接弃牌，设为观战玩家
+						p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
 
-					if p.room != nil {
-						if p.room.activePos == p.chair {
-							//TODO 直接弃牌，设为观战玩家
-
-						}
-						//TODO 如果用户断线，其他玩家可不可以加入房间
-						enter := p.RspEnterRoom(p.room)
-						//未入座 座位为 -1
-						p.chair = -1
-						p.room.Broadcast(enter)
 					}
-					close(ch)
-					p.connAgent.Destroy()
-					return
+					//玩家离场
+					p.room.curPlayerNum--
+					p.room.PlayerList[p.chair] = nil
+					p.IsOnLine = false
+					p.OtherPlayerLeave()
+
+					//未入座 座位为 -1
+					p.chair = -1
+					enter := p.RspEnterRoom()
+					p.room.Broadcast(enter)
 				}
+
+				p.connAgent.Destroy()
+				return
 			}
 		}
 	}()
@@ -222,27 +213,56 @@ func DeletePlayer(p *Player) {
 
 //-----------------------------------------
 
+//PlayerExitRoom 玩家退出房间
+func (p *Player) PlayerExitRoom() {
+	log.Debug("Player from Room Exit ~: %v", p.ID)
+
+	if p.room != nil {
+		p.room.ExitFromRoom(p)
+		p.room = nil
+	} else {
+		log.Debug("Exit Room , but not found Player Room")
+	}
+}
+
+//GetUserRoomInfo 用户重新登陆，获取房间信息
+func (p *Player) GetUserRoomInfo() *Player {
+	//TODO 方法一,这样每个用户都先要遍历一遍，这样多用户登陆进来，速度会变慢
+	for _, v := range gameHall.roomList {
+		if v != nil {
+			for _, pl := range v.AllPlayer {
+				if pl != nil {
+					if pl.ID == p.ID {
+						return pl
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 //RspEnterRoom 返回客户端房间数据
-func (p *Player) RspEnterRoom(gr *GameRoom) *pb_msg.EnterRoomS2C {
+func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
 
 	//需要返回玩家自己本身消息，和同房间其他玩家基础信息
 	er := &pb_msg.EnterRoomS2C{}
 	er.RoomData = new(pb_msg.RoomData)
 	er.RoomData.RoomInfo = new(pb_msg.RoomInfo)
-	er.RoomData.RoomInfo.RoomId = gr.roomInfo.RoomId
-	er.RoomData.RoomInfo.CfgId = gr.roomInfo.CfgId
-	er.RoomData.RoomInfo.MaxPlayer = gr.roomInfo.MaxPlayer
-	er.RoomData.RoomInfo.ActionTimeS = gr.roomInfo.ActionTimeS
-	er.RoomData.RoomInfo.Pwd = gr.roomInfo.Pwd
-	er.RoomData.IsStepEnd = gr.isStepEnd
-	er.RoomData.GameStep = gr.gameStep
-	er.RoomData.MinRaise = gr.minRaise
-	er.RoomData.ActivePos = int32(gr.activePos)
-	er.RoomData.NextStepTs = gr.nextStepTs
-	er.RoomData.Pot = gr.pot
-	er.RoomData.PublicCardKeys = gr.publicCardKeys
+	er.RoomData.RoomInfo.RoomId = p.room.roomInfo.RoomId
+	er.RoomData.RoomInfo.CfgId = p.room.roomInfo.CfgId
+	er.RoomData.RoomInfo.MaxPlayer = p.room.roomInfo.MaxPlayer
+	er.RoomData.RoomInfo.ActionTimeS = p.room.roomInfo.ActionTimeS
+	er.RoomData.RoomInfo.Pwd = p.room.roomInfo.Pwd
+	er.RoomData.IsStepEnd = p.room.isStepEnd
+	er.RoomData.GameStep = p.room.gameStep
+	er.RoomData.MinRaise = p.room.minRaise
+	er.RoomData.ActivePos = int32(p.room.activePos)
+	er.RoomData.NextStepTs = p.room.nextStepTs
+	er.RoomData.Pot = p.room.pot
+	er.RoomData.PublicCardKeys = p.room.publicCardKeys
 
-	for _, v := range gr.PlayerList {
+	for _, v := range p.room.AllPlayer {
 		if v != nil {
 			data := &pb_msg.PlayerData{}
 			data.PlayerInfo = new(pb_msg.PlayerInfo)
@@ -273,31 +293,84 @@ func (p *Player) RspEnterRoom(gr *GameRoom) *pb_msg.EnterRoomS2C {
 	return er
 }
 
-//PlayerExitRoom 玩家退出房间
-func (p *Player) PlayerExitRoom() {
-	log.Debug("Player from Room Exit ~: %v", p.ID)
+//NewPlayerJoin 新加入房间玩家信息
+func (p *Player) OtherPlayerJoin() {
+	pl := &pb_msg.OtherPlayerJoinS2C{}
+	pl.PlayerData = new(pb_msg.PlayerData)
+	pl.PlayerData.PlayerInfo = new(pb_msg.PlayerInfo)
+	pl.PlayerData.PlayerInfo.Id = p.ID
+	pl.PlayerData.PlayerInfo.Name = p.name
+	pl.PlayerData.PlayerInfo.HeadImg = p.headImg
+	pl.PlayerData.PlayerInfo.Balance = p.balance
+	pl.PlayerData.Position = p.chair
+	pl.PlayerData.IsRaised = p.IsRaised
+	pl.PlayerData.PlayerStatus = p.playerStatus
+	pl.PlayerData.DropedBets = p.dropedBets
+	pl.PlayerData.DropedBetsSum = p.dropedBetsSum
+	pl.PlayerData.CardKeys = p.cardKeys
+	pl.PlayerData.CardSuitData = new(pb_msg.CardSuitData)
+	p.cardSuitData = new(CardSuitData)
+	pl.PlayerData.CardSuitData.HandCardKeys = p.cardSuitData.HandCardKeys
+	pl.PlayerData.CardSuitData.PublicCardKeys = p.cardSuitData.PublicCardKeys
+	pl.PlayerData.CardSuitData.SuitPattern = p.cardSuitData.SuitPattern
+	pl.PlayerData.IsWinner = p.isWinner
+	pl.PlayerData.Blind = p.blind
+	pl.PlayerData.IsButton = p.isButton
+	pl.PlayerData.IsAllIn = p.isAllIn
+	pl.PlayerData.IsSelf = p.isSelf
+	pl.PlayerData.ResultMoney = p.resultMoney
 
-	if p.room != nil {
-		p.room.ExitFromRoom(p)
-		p.room = nil
+	//广播新进入玩家信息
+	p.room.Broadcast(pl)
+}
+
+//OtherPlayerLeave 其他玩家离场(观战也属于)
+func (p *Player) OtherPlayerLeave() {
+	leave := &pb_msg.OtherPlayerLeaveS2C{}
+	leave.Position = p.chair
+	leave.Pot = p.room.pot
+
+	p.room.Broadcast(leave)
+}
+
+//SitDownTable 玩家坐下座位
+func (p *Player) SitDownTable(gr *GameRoom, pos int32) {
+
+	gr.curPlayerNum++
+	p.chair = pos
+	gr.PlayerList[p.chair] = p
+
+	//新加入的玩家信息
+	p.OtherPlayerJoin()
+
+	if gr.Status != emRoomStateRun {
+		// RUN
+		gr.Running()
 	} else {
-		log.Debug("Exit Room , but not found Player Room")
+		// 如果已经在Running，游戏已经开始，玩家则为弃牌状态，则广播给其他玩家
+		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
+		enter := p.RspEnterRoom()
+		gr.Broadcast(enter)
 	}
+
+	// 返回前端房间信息
+	e := p.RspEnterRoom()
+	s := pb_msg.SitDownS2C{}
+	s.RoomData = e.RoomData
+	p.connAgent.WriteMsg(s)
 }
 
-func (p *Player) GetUserRoomInfo() *Player {
-	//TODO 方法一,这样每个用户都先要遍历一遍，这样多用户登陆进来，速度会变慢
-	for _, v := range gameHall.roomList {
-		if v != nil {
-			for _, pl := range v.PlayerList {
-				if pl != nil {
-					if pl.ID == p.ID {
-						return pl
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
+//StandUpBattle 玩家站起观战
+func (p *Player) StandUpBattle() {
+	//玩家离场
+	p.room.curPlayerNum--
+	p.room.PlayerList[p.chair] = nil
+	p.OtherPlayerLeave()
 
+	//未入座 座位为 -1，视为观战
+	p.chair = -1
+	e := p.RspEnterRoom()
+	s := pb_msg.SitDownS2C{}
+	s.RoomData = e.RoomData
+	p.room.Broadcast(s)
+}

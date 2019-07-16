@@ -13,7 +13,7 @@ import (
 )
 
 //10.63.60.96
-const Host1 = "47.75.183.211"
+const Host1 = "10.63.60.96"
 const TCPPort1 = "8888"
 const WSPort1 = "8889"
 
@@ -47,12 +47,7 @@ func tcpMsg1() []byte {
 
 func wsMsg1() []byte {
 	// 记得一定要对应消息号 在FindMsgId()函数
-	message := &pb_msg.QuickStartC2S{
-		RoomInfo: &pb_msg.RoomInfo{
-			CfgId:       "1",
-			MaxPlayer:   5,
-			ActionTimeS: 15,
-		},
+	message := &pb_msg.PingC2S{
 	}
 
 	payload, err := proto.Marshal(message)
@@ -102,9 +97,9 @@ func findMsgID1(t string) uint16 {
 
 	if id, ok := msgType2ID[t]; ok {
 		return id
-}
+	}
 
-return 1024
+	return 1024
 }
 
 func tcpTest1() {

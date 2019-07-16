@@ -18,6 +18,8 @@ func init() {
 	handler(&pb_msg.CreateRoomC2S{}, handleCreatRoom)
 	handler(&pb_msg.JoinRoomC2S{}, handleJoinRoom)
 	handler(&pb_msg.ExitRoomC2S{}, handleExitRoom)
+	handler(&pb_msg.SitDownC2S{}, handleSitDown)
+	handler(&pb_msg.StandUpC2S{}, handleStandUp)
 }
 
 // 异步处理
@@ -25,7 +27,7 @@ func handler(m interface{}, h interface{}) {
 	skeleton.RegisterChanRPC(reflect.TypeOf(m), h)
 }
 
-var ch chan *Player
+//var ch chan *Player
 
 func handlePing(args []interface{}) {
 	m := args[0].(*pb_msg.PingC2S)
@@ -83,37 +85,17 @@ func handleLogin(args []interface{}) {
 	if player != nil {
 		//将新的用户链接赋给旧的用户链接，再将旧的用户数据在塞到链接上
 		p = player
+		p.IsOnLine = true
 		p.connAgent = a
 		p.connAgent.SetUserData(p)
-		enter := p.RspEnterRoom(p.room)
+		enter := p.RspEnterRoom()
 		p.connAgent.WriteMsg(enter)
 	}
-
-	// 判断用户是否断线重新登录，如果是则返回用户房间数据
-	//room := userRoomMap[p.ID]
-	//fmt.Println("roooooooooommmmmmmmm:", room)
-	//if room != nil {
-	//	for _, v := range room.PlayerList {
-	//		if v != nil {
-	//			if v.ID == p.ID {
-	//				p.room = room
-	//				p = v
-	//				//将新的用户链接赋给旧的用户链接，再将旧的用户数据在塞到链接上
-	//				p.connAgent = a
-	//				p.connAgent.SetUserData(p)
-	//				enter := p.RspEnterRoom(p.room)
-	//				p.connAgent.WriteMsg(enter)
-	//			}
-	//		}
-	//	}
-	//}
-	//
 }
 
 func handleQuickStart(args []interface{}) {
 	m := args[0].(*pb_msg.QuickStartC2S)
 	a := args[1].(gate.Agent)
-
 	p, ok := a.UserData().(*Player)
 	log.Debug("handleQuickStart 快速匹配房间 :%v", p.ID)
 
@@ -168,5 +150,28 @@ func handleExitRoom(args []interface{}) {
 	p, ok := a.UserData().(*Player)
 	if ok {
 		p.PlayerExitRoom()
+	}
+}
+
+func handleSitDown(args []interface{}) {
+	m := args[0].(*pb_msg.SitDownC2S)
+	a := args[1].(gate.Agent)
+
+	p, ok := a.UserData().(*Player)
+	log.Debug("handleSitDown 玩家坐下座位 ~")
+
+	if ok {
+		p.SitDownTable(p.room, m.Position)
+	}
+}
+
+func handleStandUp(args []interface{}) {
+	a := args[1].(gate.Agent)
+
+	p, ok := a.UserData().(*Player)
+	log.Debug("handleStandUp 玩家站起观战 ~ ")
+
+	if ok {
+		p.StandUpBattle()
 	}
 }

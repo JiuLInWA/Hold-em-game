@@ -28,7 +28,8 @@ type RoomInfo struct {
 
 type GameRoom struct {
 	roomInfo     *RoomInfo
-	PlayerList   []*Player //玩家列表
+	AllPlayer    []*Player //站起来的玩家
+	PlayerList   []*Player //座位玩家列表
 	curPlayerNum int32     //房间当前玩家数
 
 	Cards          algorithm.Cards      //公共牌
@@ -44,20 +45,19 @@ type GameRoom struct {
 	Status RoomStat
 
 	Timeout time.Duration
-	remain  int32    //记录每个阶段玩家的下注的数量
-	allin   int32    //allin玩家的数量
-	Pots    []uint32 //奖池筹码数,第一项为主池，其他项(若存在)为边池
-	Button  uint32   //庄家座位号
-	SB      uint32   //小盲注
-	BB      uint32   //大盲注
+	remain  int32   //记录每个阶段玩家的下注的数量
+	allin   int32   //allin玩家的数量
+	Chips   []int32 //所有玩家本局下的总筹码,对应player玩家
+	Pots    []int32 //奖池筹码数,第一项为主池，其他项(若存在)为边池
+	Button  uint32  //庄家座位号
+	SB      uint32  //小盲注
+	BB      uint32  //大盲注
 }
 
 //Init 房间初始化
 func (gr *GameRoom) Init(r *RoomInfo) {
 
-	ri := new(RoomInfo)
-	gr.roomInfo = ri
-
+	gr.roomInfo = new(RoomInfo)
 	roomId := fmt.Sprintf("%06v", rand.New(rand.NewSource(time.Now().UnixNano())).Int31n(1000000))
 	gr.roomInfo.RoomId = roomId
 	gr.roomInfo.CfgId = r.CfgId
@@ -65,29 +65,35 @@ func (gr *GameRoom) Init(r *RoomInfo) {
 	gr.roomInfo.ActionTimeS = r.ActionTimeS
 	gr.roomInfo.Pwd = r.Pwd
 
+	gr.AllPlayer = nil
 	gr.PlayerList = make([]*Player, r.MaxPlayer)
 	for i := 0; i < len(gr.PlayerList); i++ {
 		gr.PlayerList[i] = nil
 	}
-
 	gr.curPlayerNum = 0
 
+	gr.Cards = nil
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_WAITING
 	gr.activePos = -1
 	gr.pot = 0
+	gr.publicCardKeys = []int32{}
 
 	gr.Status = emRoomStateNone
+	gr.remain = 0
+	gr.allin = 0
+	gr.Pots = []int32{}
 
 	gr.Button = 0
 	cd := CfgDataHandle(r.CfgId)
 	gr.SB = uint32(cd.Bb / 2)
 	gr.BB = uint32(cd.Bb)
 
+	gr.minRaise = float64(gr.BB)
 }
 
 //Broadcast 广播消息
 func (gr *GameRoom) Broadcast(msg interface{}) {
-	for _, p := range gr.PlayerList {
+	for _, p := range gr.AllPlayer {
 		if p != nil {
 			p.SendMsg(msg)
 		}
@@ -223,7 +229,7 @@ func (gr *GameRoom) betting(p *Player, blind float64) {
 	gr.pot = gr.pot + blind
 
 	//广播发送玩家盲注金额
-	msg := p.RspEnterRoom(gr)
+	msg := p.RspEnterRoom()
 	gr.Broadcast(msg)
 
 }
@@ -253,6 +259,31 @@ func (gr *GameRoom) action(pos uint32) {
 	}
 
 	gr.Each(pos, func(p *Player) bool {
+		//3、当前行动玩家座位号
+		gr.activePos = p.chair
+		log.Debug("行动玩家 ~ :%v", gr.activePos)
+
+		//1、设置每个玩家下注时间
+
+		//2、每个玩家下注状态
+		switch p.playerStatus {
+		case pb_msg.Enum_PlayerStatus_STATUS_WAITING:
+			break
+		case pb_msg.Enum_PlayerStatus_STATUS_RAISE:
+
+		case pb_msg.Enum_PlayerStatus_STATUS_CALL:
+		case pb_msg.Enum_PlayerStatus_STATUS_CHECK:
+		case pb_msg.Enum_PlayerStatus_STATUS_FOLD:
+		case pb_msg.Enum_PlayerStatus_STATUS_SHOW_DOWN:
+
+		}
+		//3、下注状态结束则停止时间，进行下一个玩家下注
+		//4、下注时间超时，还未下注则直接弃牌
+		//5、每个玩家的下注金额根据上个用户金额选择下注
+		//6、如果玩家弃牌则改变玩家状态
+		//6、将玩家的下注金额添加到奖金池
+		//7、玩家全部Allin则直接跳到摊牌
+		//8、玩家全部弃牌，则最后一个直接获取奖金池
 		gr.getTimer(p)
 		return true
 	})
@@ -275,7 +306,7 @@ func (gr *GameRoom) Running() {
 		gr.pot = 0
 		gr.minRaise = 0
 		gr.publicCardKeys = []int32{}
-		gr.Pots = []uint32{}
+		gr.Pots = []int32{}
 
 		gr.remain = 0
 		gr.allin = 0
@@ -294,7 +325,7 @@ func (gr *GameRoom) Running() {
 		dealer.isButton = true
 
 		//获取庄家数据，进行广播，因为重新开始会有多名玩家
-		enter := dealer.RspEnterRoom(gr)
+		enter := dealer.RspEnterRoom()
 		gr.Broadcast(enter)
 		log.Debug("庄家的座位号为 : %v", dealer.chair)
 
@@ -318,7 +349,7 @@ func (gr *GameRoom) Running() {
 		}
 
 		// Round 1：preFlop 开始发手牌,下注
-		//gr.gameStep = pb_msg.Enum_GameStep_STEP_PRE_FLOP
+		gr.gameStep = pb_msg.Enum_GameStep_STEP_PRE_FLOP
 
 		//准备阶段
 		gr.readyPlay()
@@ -331,13 +362,9 @@ func (gr *GameRoom) Running() {
 			//2、获取手牌类型,只有两个可能,1为高牌,2为一对
 			kind, _ := algorithm.De(p.cards.GetType())
 			log.Debug("手牌类型 ~ :%v", kind)
-			//3、当前行动玩家座位号
-			gr.activePos = p.chair
-			log.Debug("行动玩家 ~ :%v", gr.activePos)
-			//4、发送前端数据
-			enter := p.RspEnterRoom(gr)
-			//5、广播数据
-			gr.Broadcast(enter)
+
+			enter := p.RspEnterRoom()
+			p.connAgent.WriteMsg(enter)
 			return true
 		})
 		//行动, 下注, 如果玩家全部摊牌直接比牌
@@ -365,10 +392,10 @@ func (gr *GameRoom) Running() {
 		//6、游戏结束，停留5秒，重新开始游戏
 		//gr.Status = emRoomStateOver
 
-		//遍历房间所有用户，座位号为-1的说明用户已经断线，直接踢掉
-		for _, v := range gr.PlayerList {
+		//遍历房间所有用户，玩家OnLine状态为false说明用户已经断线，直接踢掉
+		for _, v := range gr.AllPlayer {
 			if v != nil {
-				if int(v.chair) == -1 {
+				if v.IsOnLine == false {
 					msg := pb_msg.SvrMsgS2C{}
 					msg.Code = RECODE_LOSTCONNECT
 					msg.TipType = pb_msg.Enum_SvrTipType_MSG
@@ -398,21 +425,29 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 	p.chair = gr.FindAbleChair()
 	gr.PlayerList[p.chair] = p
 
+	//房间总人数
+	gr.AllPlayer = append(gr.AllPlayer, p)
+
 	p.isSelf = true
 	p.room = gr
+
+	//新加入的玩家信息
+	p.OtherPlayerJoin()
 
 	if gr.Status != emRoomStateRun {
 		// RUN
 		gr.Running()
 	} else {
-		// 如果已经在Running，游戏已经开始，则广播给其他玩家
-		enter := p.RspEnterRoom(gr)
+		// 如果已经在Running，游戏已经开始，玩家则为弃牌状态，则广播给其他玩家
+		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
+		enter := p.RspEnterRoom()
 		gr.Broadcast(enter)
 	}
 
 	// 返回前端房间信息
-	roomData := p.RspEnterRoom(gr)
+	roomData := p.RspEnterRoom()
 	p.connAgent.WriteMsg(roomData)
+	fmt.Println("pppppppppppppp:::", p)
 	fmt.Println("this room data ~ :", roomData)
 
 	return uint8(p.chair)
@@ -420,38 +455,58 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 
 //ExitFromRoom 玩家从房间退出
 func (gr *GameRoom) ExitFromRoom(p *Player) {
-	gr.curPlayerNum--
+
+	//玩家离场
+	p.OtherPlayerLeave()
+
+	if p.chair == -1 {
+		log.Debug("观战玩家退出房间 ~")
+		//玩家退出房间, 将剩余的筹码转换为玩家金额
+		p.balance = p.chips
+		p.chips = 0
+		log.Debug("玩家剩余余额 : %v", p.balance)
+
+	} else {
+		log.Debug("游戏玩家退出房间 ~")
+		gr.curPlayerNum--
+		p.balance = p.chips
+		p.chips = 0
+		log.Debug("玩家剩余余额 : %v", p.balance)
+		gr.PlayerList[p.chair] = nil
+	}
 	fmt.Println("ExitFromRoom curPlayerNum ~ :", gr.curPlayerNum)
 
-	//玩家退出房间, 将剩余的筹码转换为玩家金额
-	p.balance = p.chips
-	p.chips = 0
-	log.Debug("玩家剩余余额 : %v", p.balance)
+	for k, v := range gr.AllPlayer {
+		if v != nil {
+			if v == p {
+				gr.AllPlayer = append(gr.AllPlayer[:k], gr.AllPlayer[k+1:]...)
+				log.Debug("删除房间总人数成功 ~")
+			}
+		}
 
-	gr.PlayerList[p.chair] = nil
-	if gr.curPlayerNum == 0 {
-		fmt.Println("Room PlayerNum is 0，so delete this room! ~ ")
+		if len(gr.AllPlayer) == 0 {
+			fmt.Println("Room PlayerNum is 0，so delete this room! ~ ")
 
-		gameHall.DeleteRoom(p.room.roomInfo.RoomId)
-	} else {
-		//给其他玩家广播该用户已下线！
-		data := &pb_msg.LoginResultS2C{}
+			gameHall.DeleteRoom(p.room.roomInfo.RoomId)
+		} else {
+			//给其他玩家广播该用户已下线！
+			data := &pb_msg.LoginResultS2C{}
+			data.PlayerInfo = new(pb_msg.PlayerInfo)
+			data.PlayerInfo.Id = p.ID
+			data.PlayerInfo.Name = p.name
+			data.PlayerInfo.HeadImg = p.headImg
+			data.PlayerInfo.Balance = p.balance
+
+			gr.Broadcast(data)
+		}
+
+		data := &pb_msg.ExitRoomS2C{}
 		data.PlayerInfo = new(pb_msg.PlayerInfo)
 		data.PlayerInfo.Id = p.ID
 		data.PlayerInfo.Name = p.name
 		data.PlayerInfo.HeadImg = p.headImg
 		data.PlayerInfo.Balance = p.balance
 
-		gr.Broadcast(data)
+		p.connAgent.WriteMsg(data)
 	}
-
-	data := &pb_msg.ExitRoomS2C{}
-	data.PlayerInfo = new(pb_msg.PlayerInfo)
-	data.PlayerInfo.Id = p.ID
-	data.PlayerInfo.Name = p.name
-	data.PlayerInfo.HeadImg = p.headImg
-	data.PlayerInfo.Balance = p.balance
-
-	p.connAgent.WriteMsg(data)
-	fmt.Println("ExitRoom data :", data)
 }
