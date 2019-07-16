@@ -358,7 +358,7 @@ var xxx_messageInfo_PingC2S proto.InternalMessageInfo
 
 //--1
 type PongS2C struct {
-	ServerTime           int64    `protobuf:"varint,1,opt,name=serverTime,proto3" json:"serverTime,omitempty"`
+	ServerTime           int64    `protobuf:"varint,1,opt,name=serverTime,proto3" json:"serverTime"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -398,9 +398,9 @@ func (m *PongS2C) GetServerTime() int64 {
 
 //--2
 type SvrMsgS2C struct {
-	Code                 int32           `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
-	Data                 string          `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	TipType              Enum_SvrTipType `protobuf:"varint,3,opt,name=tipType,proto3,enum=pb_msg.Enum_SvrTipType" json:"tipType,omitempty"`
+	Code                 int32           `protobuf:"varint,1,opt,name=code,proto3" json:"code"`
+	Data                 string          `protobuf:"bytes,2,opt,name=data,proto3" json:"data"`
+	TipType              Enum_SvrTipType `protobuf:"varint,3,opt,name=tipType,proto3,enum=pb_msg.Enum_SvrTipType" json:"tipType"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
 	XXX_sizecache        int32           `json:"-"`
@@ -454,10 +454,10 @@ func (m *SvrMsgS2C) GetTipType() Enum_SvrTipType {
 
 // 玩家基础信息
 type PlayerInfo struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	HeadImg              string   `protobuf:"bytes,3,opt,name=headImg,proto3" json:"headImg,omitempty"`
-	Balance              float64  `protobuf:"fixed64,4,opt,name=balance,proto3" json:"balance,omitempty"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name"`
+	HeadImg              string   `protobuf:"bytes,3,opt,name=headImg,proto3" json:"headImg"`
+	Balance              float64  `protobuf:"fixed64,4,opt,name=balance,proto3" json:"balance"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -518,9 +518,9 @@ func (m *PlayerInfo) GetBalance() float64 {
 
 // 登录信息
 type LoginInfo struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	GameId               string   `protobuf:"bytes,2,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
-	ServerUrl            string   `protobuf:"bytes,3,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id"`
+	GameId               string   `protobuf:"bytes,2,opt,name=game_id,json=gameId,proto3" json:"game_id"`
+	ServerUrl            string   `protobuf:"bytes,3,opt,name=server_url,json=serverUrl,proto3" json:"server_url"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -574,7 +574,7 @@ func (m *LoginInfo) GetServerUrl() string {
 
 //--3
 type LoginC2S struct {
-	LoginInfo            *LoginInfo `protobuf:"bytes,1,opt,name=loginInfo,proto3" json:"loginInfo,omitempty"`
+	LoginInfo            *LoginInfo `protobuf:"bytes,1,opt,name=loginInfo,proto3" json:"loginInfo"`
 	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
 	XXX_unrecognized     []byte     `json:"-"`
 	XXX_sizecache        int32      `json:"-"`
@@ -614,7 +614,7 @@ func (m *LoginC2S) GetLoginInfo() *LoginInfo {
 
 //--4
 type LoginResultS2C struct {
-	PlayerInfo           *PlayerInfo `protobuf:"bytes,1,opt,name=playerInfo,proto3" json:"playerInfo,omitempty"`
+	PlayerInfo           *PlayerInfo `protobuf:"bytes,1,opt,name=playerInfo,proto3" json:"playerInfo"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -654,9 +654,9 @@ func (m *LoginResultS2C) GetPlayerInfo() *PlayerInfo {
 
 // 牌型数据
 type CardSuitData struct {
-	HandCardKeys         []int32       `protobuf:"varint,1,rep,packed,name=handCardKeys,proto3" json:"handCardKeys,omitempty"`
-	PublicCardKeys       []int32       `protobuf:"varint,2,rep,packed,name=publicCardKeys,proto3" json:"publicCardKeys,omitempty"`
-	SuitPattern          Enum_CardSuit `protobuf:"varint,3,opt,name=suitPattern,proto3,enum=pb_msg.Enum_CardSuit" json:"suitPattern,omitempty"`
+	HandCardKeys         []int32       `protobuf:"varint,1,rep,packed,name=handCardKeys,proto3" json:"handCardKeys"`
+	PublicCardKeys       []int32       `protobuf:"varint,2,rep,packed,name=publicCardKeys,proto3" json:"publicCardKeys"`
+	SuitPattern          Enum_CardSuit `protobuf:"varint,3,opt,name=suitPattern,proto3,enum=pb_msg.Enum_CardSuit" json:"suitPattern"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -710,11 +710,11 @@ func (m *CardSuitData) GetSuitPattern() Enum_CardSuit {
 
 // 房间基础信息
 type RoomInfo struct {
-	RoomId               string           `protobuf:"bytes,1,opt,name=roomId,proto3" json:"roomId,omitempty"`
-	CfgId                string           `protobuf:"bytes,2,opt,name=cfgId,proto3" json:"cfgId,omitempty"`
-	MaxPlayer            int32            `protobuf:"varint,3,opt,name=maxPlayer,proto3" json:"maxPlayer,omitempty"`
-	ActionTimeS          Enum_ActionTimeS `protobuf:"varint,4,opt,name=actionTime_s,json=actionTimeS,proto3,enum=pb_msg.Enum_ActionTimeS" json:"actionTime_s,omitempty"`
-	Pwd                  string           `protobuf:"bytes,5,opt,name=pwd,proto3" json:"pwd,omitempty"`
+	RoomId               string           `protobuf:"bytes,1,opt,name=roomId,proto3" json:"roomId"`
+	CfgId                string           `protobuf:"bytes,2,opt,name=cfgId,proto3" json:"cfgId"`
+	MaxPlayer            int32            `protobuf:"varint,3,opt,name=maxPlayer,proto3" json:"maxPlayer"`
+	ActionTimeS          Enum_ActionTimeS `protobuf:"varint,4,opt,name=actionTime_s,json=actionTimeS,proto3,enum=pb_msg.Enum_ActionTimeS" json:"actionTime_s"`
+	Pwd                  string           `protobuf:"bytes,5,opt,name=pwd,proto3" json:"pwd"`
 	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
 	XXX_unrecognized     []byte           `json:"-"`
 	XXX_sizecache        int32            `json:"-"`
@@ -782,20 +782,20 @@ func (m *RoomInfo) GetPwd() string {
 
 // 玩家数据
 type PlayerData struct {
-	PlayerInfo           *PlayerInfo       `protobuf:"bytes,1,opt,name=playerInfo,proto3" json:"playerInfo,omitempty"`
-	Position             int32             `protobuf:"varint,2,opt,name=position,proto3" json:"position,omitempty"`
-	IsRaised             bool              `protobuf:"varint,3,opt,name=isRaised,proto3" json:"isRaised,omitempty"`
-	PlayerStatus         Enum_PlayerStatus `protobuf:"varint,4,opt,name=playerStatus,proto3,enum=pb_msg.Enum_PlayerStatus" json:"playerStatus,omitempty"`
-	DropedBets           float64           `protobuf:"fixed64,5,opt,name=dropedBets,proto3" json:"dropedBets,omitempty"`
-	DropedBetsSum        float64           `protobuf:"fixed64,6,opt,name=dropedBetsSum,proto3" json:"dropedBetsSum,omitempty"`
-	CardKeys             []int32           `protobuf:"varint,7,rep,packed,name=cardKeys,proto3" json:"cardKeys,omitempty"`
-	CardSuitData         *CardSuitData     `protobuf:"bytes,8,opt,name=cardSuitData,proto3" json:"cardSuitData,omitempty"`
-	IsWinner             bool              `protobuf:"varint,9,opt,name=isWinner,proto3" json:"isWinner,omitempty"`
-	Blind                Enum_Blind        `protobuf:"varint,10,opt,name=blind,proto3,enum=pb_msg.Enum_Blind" json:"blind,omitempty"`
-	IsButton             bool              `protobuf:"varint,11,opt,name=isButton,proto3" json:"isButton,omitempty"`
-	IsAllIn              bool              `protobuf:"varint,12,opt,name=isAllIn,proto3" json:"isAllIn,omitempty"`
-	IsSelf               bool              `protobuf:"varint,13,opt,name=isSelf,proto3" json:"isSelf,omitempty"`
-	ResultMoney          float64           `protobuf:"fixed64,14,opt,name=resultMoney,proto3" json:"resultMoney,omitempty"`
+	PlayerInfo           *PlayerInfo       `protobuf:"bytes,1,opt,name=playerInfo,proto3" json:"playerInfo"`
+	Position             int32             `protobuf:"varint,2,opt,name=position,proto3" json:"position"`
+	IsRaised             bool              `protobuf:"varint,3,opt,name=isRaised,proto3" json:"isRaised"`
+	PlayerStatus         Enum_PlayerStatus `protobuf:"varint,4,opt,name=playerStatus,proto3,enum=pb_msg.Enum_PlayerStatus" json:"playerStatus"`
+	DropedBets           float64           `protobuf:"fixed64,5,opt,name=dropedBets,proto3" json:"dropedBets"`
+	DropedBetsSum        float64           `protobuf:"fixed64,6,opt,name=dropedBetsSum,proto3" json:"dropedBetsSum"`
+	CardKeys             []int32           `protobuf:"varint,7,rep,packed,name=cardKeys,proto3" json:"cardKeys"`
+	CardSuitData         *CardSuitData     `protobuf:"bytes,8,opt,name=cardSuitData,proto3" json:"cardSuitData"`
+	IsWinner             bool              `protobuf:"varint,9,opt,name=isWinner,proto3" json:"isWinner"`
+	Blind                Enum_Blind        `protobuf:"varint,10,opt,name=blind,proto3,enum=pb_msg.Enum_Blind" json:"blind"`
+	IsButton             bool              `protobuf:"varint,11,opt,name=isButton,proto3" json:"isButton"`
+	IsAllIn              bool              `protobuf:"varint,12,opt,name=isAllIn,proto3" json:"isAllIn"`
+	IsSelf               bool              `protobuf:"varint,13,opt,name=isSelf,proto3" json:"isSelf"`
+	ResultMoney          float64           `protobuf:"fixed64,14,opt,name=resultMoney,proto3" json:"resultMoney"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
@@ -926,15 +926,15 @@ func (m *PlayerData) GetResultMoney() float64 {
 
 // 房间数据
 type RoomData struct {
-	RoomInfo             *RoomInfo     `protobuf:"bytes,1,opt,name=roomInfo,proto3" json:"roomInfo,omitempty"`
-	IsStepEnd            bool          `protobuf:"varint,2,opt,name=isStepEnd,proto3" json:"isStepEnd,omitempty"`
-	GameStep             Enum_GameStep `protobuf:"varint,3,opt,name=gameStep,proto3,enum=pb_msg.Enum_GameStep" json:"gameStep,omitempty"`
-	MinRaise             float64       `protobuf:"fixed64,4,opt,name=minRaise,proto3" json:"minRaise,omitempty"`
-	ActivePos            int32         `protobuf:"varint,5,opt,name=activePos,proto3" json:"activePos,omitempty"`
-	NextStepTs           int64         `protobuf:"varint,6,opt,name=nextStepTs,proto3" json:"nextStepTs,omitempty"`
-	Pot                  float64       `protobuf:"fixed64,7,opt,name=pot,proto3" json:"pot,omitempty"`
-	PublicCardKeys       []int32       `protobuf:"varint,8,rep,packed,name=publicCardKeys,proto3" json:"publicCardKeys,omitempty"`
-	PlayerDatas          []*PlayerData `protobuf:"bytes,9,rep,name=playerDatas,proto3" json:"playerDatas,omitempty"`
+	RoomInfo             *RoomInfo     `protobuf:"bytes,1,opt,name=roomInfo,proto3" json:"roomInfo"`
+	IsStepEnd            bool          `protobuf:"varint,2,opt,name=isStepEnd,proto3" json:"isStepEnd"`
+	GameStep             Enum_GameStep `protobuf:"varint,3,opt,name=gameStep,proto3,enum=pb_msg.Enum_GameStep" json:"gameStep"`
+	MinRaise             float64       `protobuf:"fixed64,4,opt,name=minRaise,proto3" json:"minRaise"`
+	ActivePos            int32         `protobuf:"varint,5,opt,name=activePos,proto3" json:"activePos"`
+	NextStepTs           int64         `protobuf:"varint,6,opt,name=nextStepTs,proto3" json:"nextStepTs"`
+	Pot                  float64       `protobuf:"fixed64,7,opt,name=pot,proto3" json:"pot"`
+	PublicCardKeys       []int32       `protobuf:"varint,8,rep,packed,name=publicCardKeys,proto3" json:"publicCardKeys"`
+	PlayerDatas          []*PlayerData `protobuf:"bytes,9,rep,name=playerDatas,proto3" json:"playerDatas"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -1030,7 +1030,7 @@ func (m *RoomData) GetPlayerDatas() []*PlayerData {
 
 //--5 根据房间条件快速匹配一张牌桌
 type QuickStartC2S struct {
-	RoomInfo             *RoomInfo `protobuf:"bytes,1,opt,name=roomInfo,proto3" json:"roomInfo,omitempty"`
+	RoomInfo             *RoomInfo `protobuf:"bytes,1,opt,name=roomInfo,proto3" json:"roomInfo"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1070,7 +1070,7 @@ func (m *QuickStartC2S) GetRoomInfo() *RoomInfo {
 
 //--6 创建房间请求
 type CreateRoomC2S struct {
-	RoomInfo             *RoomInfo `protobuf:"bytes,1,opt,name=roomInfo,proto3" json:"roomInfo,omitempty"`
+	RoomInfo             *RoomInfo `protobuf:"bytes,1,opt,name=roomInfo,proto3" json:"roomInfo"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1110,8 +1110,8 @@ func (m *CreateRoomC2S) GetRoomInfo() *RoomInfo {
 
 //--7 加入房间请求
 type JoinRoomC2S struct {
-	RoomId               string   `protobuf:"bytes,1,opt,name=roomId,proto3" json:"roomId,omitempty"`
-	Pwd                  string   `protobuf:"bytes,2,opt,name=pwd,proto3" json:"pwd,omitempty"`
+	RoomId               string   `protobuf:"bytes,1,opt,name=roomId,proto3" json:"roomId"`
+	Pwd                  string   `protobuf:"bytes,2,opt,name=pwd,proto3" json:"pwd"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1158,7 +1158,7 @@ func (m *JoinRoomC2S) GetPwd() string {
 
 //--8 进入房间
 type EnterRoomS2C struct {
-	RoomData             *RoomData `protobuf:"bytes,1,opt,name=roomData,proto3" json:"roomData,omitempty"`
+	RoomData             *RoomData `protobuf:"bytes,1,opt,name=roomData,proto3" json:"roomData"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1198,7 +1198,7 @@ func (m *EnterRoomS2C) GetRoomData() *RoomData {
 
 //--9 退出房间请求
 type ExitRoomC2S struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=Id,proto3" json:"Id,omitempty"`
+	Id                   string   `protobuf:"bytes,1,opt,name=Id,proto3" json:"Id"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1238,7 +1238,7 @@ func (m *ExitRoomC2S) GetId() string {
 
 //--10 退出房间
 type ExitRoomS2C struct {
-	PlayerInfo           *PlayerInfo `protobuf:"bytes,1,opt,name=playerInfo,proto3" json:"playerInfo,omitempty"`
+	PlayerInfo           *PlayerInfo `protobuf:"bytes,1,opt,name=playerInfo,proto3" json:"playerInfo"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -1278,7 +1278,7 @@ func (m *ExitRoomS2C) GetPlayerInfo() *PlayerInfo {
 
 //--11 玩家加入
 type OtherPlayerJoinS2C struct {
-	PlayerData           *PlayerData `protobuf:"bytes,1,opt,name=playerData,proto3" json:"playerData,omitempty"`
+	PlayerData           *PlayerData `protobuf:"bytes,1,opt,name=playerData,proto3" json:"playerData"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -1318,8 +1318,8 @@ func (m *OtherPlayerJoinS2C) GetPlayerData() *PlayerData {
 
 //--12 玩家离场（观战也算离场，只要不在桌上）
 type OtherPlayerLeaveS2C struct {
-	Position             int32    `protobuf:"varint,1,opt,name=position,proto3" json:"position,omitempty"`
-	Pot                  float64  `protobuf:"fixed64,2,opt,name=pot,proto3" json:"pot,omitempty"`
+	Position             int32    `protobuf:"varint,1,opt,name=position,proto3" json:"position"`
+	Pot                  float64  `protobuf:"fixed64,2,opt,name=pot,proto3" json:"pot"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1366,7 +1366,7 @@ func (m *OtherPlayerLeaveS2C) GetPot() float64 {
 
 //--13 玩家入座 请求
 type SitDownC2S struct {
-	Position             int32    `protobuf:"varint,1,opt,name=position,proto3" json:"position,omitempty"`
+	Position             int32    `protobuf:"varint,1,opt,name=position,proto3" json:"position"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1406,7 +1406,7 @@ func (m *SitDownC2S) GetPosition() int32 {
 
 //--14 玩家入座
 type SitDownS2C struct {
-	RoomData             *RoomData `protobuf:"bytes,1,opt,name=roomData,proto3" json:"roomData,omitempty"`
+	RoomData             *RoomData `protobuf:"bytes,1,opt,name=roomData,proto3" json:"roomData"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1478,7 +1478,7 @@ var xxx_messageInfo_StandUpC2S proto.InternalMessageInfo
 
 //--16 玩家离座观战
 type StandUpS2C struct {
-	RoomData             *RoomData `protobuf:"bytes,1,opt,name=roomData,proto3" json:"roomData,omitempty"`
+	RoomData             *RoomData `protobuf:"bytes,1,opt,name=roomData,proto3" json:"roomData"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1518,7 +1518,7 @@ func (m *StandUpS2C) GetRoomData() *RoomData {
 
 //--17 游戏阶段变更
 type GameStepChangeS2C struct {
-	RoomData             *RoomData `protobuf:"bytes,1,opt,name=roomData,proto3" json:"roomData,omitempty"`
+	RoomData             *RoomData `protobuf:"bytes,1,opt,name=roomData,proto3" json:"roomData"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
