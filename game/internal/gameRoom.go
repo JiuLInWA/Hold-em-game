@@ -447,8 +447,8 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 	// 返回前端房间信息
 	roomData := p.RspEnterRoom()
 	p.connAgent.WriteMsg(roomData)
-	fmt.Println("pppppppppppppp:::", p)
 	fmt.Println("this room data ~ :", roomData)
+	fmt.Printf("ddd:%+v", roomData)
 
 	return uint8(p.chair)
 }

@@ -24,7 +24,7 @@ func rpcNewAgent(args []interface{}) {
 	p.connAgent.SetUserData(p)
 
 	//开始呼吸
-	p.StartBreathe()
+	//p.StartBreathe()
 
 }
 
