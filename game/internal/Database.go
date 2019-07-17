@@ -53,7 +53,7 @@ func connect(dbName, cName string) (*mgo.Session, *mgo.Collection) {
 type PlayerInfo struct {
 	Id      string  // 玩家ID
 	Name    string  // 玩家名字
-	HeadImg string  // 玩家头像
+	Face string  // 玩家头像
 	Balance float64 // 账户余额
 }
 
@@ -83,9 +83,9 @@ func InsertUserInfo(m *pb_msg.LoginC2S) (*PlayerInfo, error) {
 	defer s.Close()
 
 	p := &PlayerInfo{
-		Id:      m.LoginInfo.Id,
-		Name:    m.LoginInfo.Id,
-		HeadImg: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRB45_5R6pdUp4xVFZ83dcA7BJkiSYjW8h6Z92uJo9WBkhbAMgN",
+		Id:      *m.LoginInfo.Id,
+		Name:    *m.LoginInfo.Id,
+		Face: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRB45_5R6pdUp4xVFZ83dcA7BJkiSYjW8h6Z92uJo9WBkhbAMgN",
 		Balance: 4000,
 	}
 
@@ -100,7 +100,7 @@ func (p *Player) update() error {
 	data := bson.M{"id": p.ID}
 
 	ud := &PlayerInfo{
-		HeadImg: p.headImg,
+		Face: p.headImg,
 		Balance: p.balance,
 	}
 	err := c.Update(data, ud)

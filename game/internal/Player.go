@@ -164,15 +164,12 @@ func PlayerRegister(ID string, neo *Player) {
 	fmt.Println("PlayerRegister ~ :", ID)
 	oldp, ok := mapUserID2Player[ID]
 	if ok {
-		fmt.Println(ID, "have")
-		fmt.Println("force destroy player who after login", oldp.ID)
 		// A、B同一账号，A处于登陆状态，B登陆把A挤掉，发送消息给前端做处理
-		msg := pb_msg.SvrMsgS2C{}
-		msg.Code = RECODE_PLAYERDESTORY
-		msg.TipType = pb_msg.Enum_SvrTipType_WARN
-		oldp.connAgent.WriteMsg(&msg)
-
+		log.Debug("player have :%v", oldp.ID)
 		log.Debug("用户已在其他地方登录 ~")
+		log.Debug("force destroy player who after login")
+
+		oldp.SendConfigMsg(RECODE_PLAYERDESTORY, pb_msg.Enum_SvrTipType_WARN)
 
 		// B用户登录，主动断掉A用户
 		oldp.connAgent.Destroy()
@@ -213,6 +210,17 @@ func DeletePlayer(p *Player) {
 
 //-----------------------------------------
 
+//SendConfigMsg 返回客户端配置消息
+func (p *Player) SendConfigMsg(code int32, tipType pb_msg.Enum_SvrTipType) {
+	msg := &pb_msg.SvrMsgS2C{}
+	msg.Code = new(int32)
+	msg.Data = new(string)
+	msg.TipType = (*pb_msg.Enum_SvrTipType)(new(int32))
+	*msg.Code = code
+	*msg.TipType = tipType
+	p.connAgent.WriteMsg(msg)
+}
+
 //PlayerExitRoom 玩家退出房间
 func (p *Player) PlayerExitRoom() {
 	log.Debug("Player from Room Exit ~: %v", p.ID)
@@ -249,44 +257,44 @@ func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
 	er := &pb_msg.EnterRoomS2C{}
 	er.RoomData = new(pb_msg.RoomData)
 	er.RoomData.RoomInfo = new(pb_msg.RoomInfo)
-	er.RoomData.RoomInfo.RoomId = p.room.roomInfo.RoomId
-	er.RoomData.RoomInfo.CfgId = p.room.roomInfo.CfgId
-	er.RoomData.RoomInfo.MaxPlayer = p.room.roomInfo.MaxPlayer
-	er.RoomData.RoomInfo.ActionTimeS = p.room.roomInfo.ActionTimeS
-	er.RoomData.RoomInfo.Pwd = p.room.roomInfo.Pwd
-	er.RoomData.IsStepEnd = p.room.isStepEnd
-	er.RoomData.GameStep = p.room.gameStep
-	er.RoomData.MinRaise = p.room.minRaise
-	er.RoomData.ActivePos = int32(p.room.activePos)
-	er.RoomData.NextStepTs = p.room.nextStepTs
-	er.RoomData.Pot = p.room.pot
+	er.RoomData.RoomInfo.RoomId = &p.room.roomInfo.RoomId
+	er.RoomData.RoomInfo.CfgId = &p.room.roomInfo.CfgId
+	er.RoomData.RoomInfo.MaxPlayer = &p.room.roomInfo.MaxPlayer
+	er.RoomData.RoomInfo.ActionTimeS = &p.room.roomInfo.ActionTimeS
+	er.RoomData.RoomInfo.Pwd = &p.room.roomInfo.Pwd
+	er.RoomData.IsStepEnd = &p.room.isStepEnd
+	er.RoomData.GameStep = &p.room.gameStep
+	er.RoomData.MinRaise = &p.room.minRaise
+	er.RoomData.ActivePos = &p.room.activePos
+	er.RoomData.NextStepTs = &p.room.nextStepTs
+	er.RoomData.Pot = &p.room.pot
 	er.RoomData.PublicCardKeys = p.room.publicCardKeys
 
 	for _, v := range p.room.AllPlayer {
 		if v != nil {
 			data := &pb_msg.PlayerData{}
 			data.PlayerInfo = new(pb_msg.PlayerInfo)
-			data.PlayerInfo.Id = v.ID
-			data.PlayerInfo.Name = v.name
-			data.PlayerInfo.HeadImg = v.headImg
-			data.PlayerInfo.Balance = v.balance
-			data.Position = int32(v.chair)
-			data.IsRaised = v.IsRaised
-			data.PlayerStatus = v.playerStatus
-			data.DropedBets = v.dropedBets
-			data.DropedBetsSum = v.dropedBetsSum
+			data.PlayerInfo.Id = &v.ID
+			data.PlayerInfo.Name = &v.name
+			data.PlayerInfo.Face = &v.headImg
+			data.PlayerInfo.Balance = &v.balance
+			data.Position = &v.chair
+			data.IsRaised = &v.IsRaised
+			data.PlayerStatus = &v.playerStatus
+			data.DropedBets = &v.dropedBets
+			data.DropedBetsSum = &v.dropedBetsSum
 			data.CardKeys = v.cardKeys
 			data.CardSuitData = new(pb_msg.CardSuitData)
 			v.cardSuitData = new(CardSuitData)
 			data.CardSuitData.HandCardKeys = v.cardSuitData.HandCardKeys
 			data.CardSuitData.PublicCardKeys = v.cardSuitData.PublicCardKeys
-			data.CardSuitData.SuitPattern = v.cardSuitData.SuitPattern
-			data.IsWinner = v.isWinner
-			data.Blind = v.blind
-			data.IsButton = v.isButton
-			data.IsAllIn = v.isAllIn
-			data.IsSelf = v.isSelf
-			data.ResultMoney = v.resultMoney
+			data.CardSuitData.SuitPattern = &v.cardSuitData.SuitPattern
+			data.IsWinner = &v.isWinner
+			data.Blind = &v.blind
+			data.IsButton = &v.isButton
+			data.IsAllIn = &v.isAllIn
+			data.IsSelf = &v.isSelf
+			data.ResultMoney = &v.resultMoney
 			er.RoomData.PlayerDatas = append(er.RoomData.PlayerDatas, data)
 		}
 	}
@@ -298,27 +306,27 @@ func (p *Player) OtherPlayerJoin() {
 	pl := &pb_msg.OtherPlayerJoinS2C{}
 	pl.PlayerData = new(pb_msg.PlayerData)
 	pl.PlayerData.PlayerInfo = new(pb_msg.PlayerInfo)
-	pl.PlayerData.PlayerInfo.Id = p.ID
-	pl.PlayerData.PlayerInfo.Name = p.name
-	pl.PlayerData.PlayerInfo.HeadImg = p.headImg
-	pl.PlayerData.PlayerInfo.Balance = p.balance
-	pl.PlayerData.Position = p.chair
-	pl.PlayerData.IsRaised = p.IsRaised
-	pl.PlayerData.PlayerStatus = p.playerStatus
-	pl.PlayerData.DropedBets = p.dropedBets
-	pl.PlayerData.DropedBetsSum = p.dropedBetsSum
+	pl.PlayerData.PlayerInfo.Id = &p.ID
+	pl.PlayerData.PlayerInfo.Name = &p.name
+	pl.PlayerData.PlayerInfo.Face = &p.headImg
+	pl.PlayerData.PlayerInfo.Balance = &p.balance
+	pl.PlayerData.Position = &p.chair
+	pl.PlayerData.IsRaised = &p.IsRaised
+	pl.PlayerData.PlayerStatus = &p.playerStatus
+	pl.PlayerData.DropedBets = &p.dropedBets
+	pl.PlayerData.DropedBetsSum = &p.dropedBetsSum
 	pl.PlayerData.CardKeys = p.cardKeys
 	pl.PlayerData.CardSuitData = new(pb_msg.CardSuitData)
 	p.cardSuitData = new(CardSuitData)
 	pl.PlayerData.CardSuitData.HandCardKeys = p.cardSuitData.HandCardKeys
 	pl.PlayerData.CardSuitData.PublicCardKeys = p.cardSuitData.PublicCardKeys
-	pl.PlayerData.CardSuitData.SuitPattern = p.cardSuitData.SuitPattern
-	pl.PlayerData.IsWinner = p.isWinner
-	pl.PlayerData.Blind = p.blind
-	pl.PlayerData.IsButton = p.isButton
-	pl.PlayerData.IsAllIn = p.isAllIn
-	pl.PlayerData.IsSelf = p.isSelf
-	pl.PlayerData.ResultMoney = p.resultMoney
+	pl.PlayerData.CardSuitData.SuitPattern = &p.cardSuitData.SuitPattern
+	pl.PlayerData.IsWinner = &p.isWinner
+	pl.PlayerData.Blind = &p.blind
+	pl.PlayerData.IsButton = &p.isButton
+	pl.PlayerData.IsAllIn = &p.isAllIn
+	pl.PlayerData.IsSelf = &p.isSelf
+	pl.PlayerData.ResultMoney = &p.resultMoney
 
 	//广播新进入玩家信息
 	p.room.Broadcast(pl)
@@ -327,8 +335,8 @@ func (p *Player) OtherPlayerJoin() {
 //OtherPlayerLeave 其他玩家离场(观战也属于)
 func (p *Player) OtherPlayerLeave() {
 	leave := &pb_msg.OtherPlayerLeaveS2C{}
-	leave.Position = p.chair
-	leave.Pot = p.room.pot
+	leave.Position = &p.chair
+	leave.Pot = &p.room.pot
 
 	p.room.Broadcast(leave)
 }

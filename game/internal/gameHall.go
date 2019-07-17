@@ -8,13 +8,12 @@ import (
 	"strconv"
 )
 
-
 //var userRoomMap map[string]*GameRoom
 
 //GameHall 描述游戏大厅，目前一个游戏就一个大厅
 type GameHall struct {
-	maxPlayer   uint16
-	roomList    []*GameRoom
+	maxPlayer uint16
+	roomList  []*GameRoom
 }
 
 //Init 大厅初始化~！
@@ -32,10 +31,12 @@ func (gh *GameHall) CreateRoom(p *Player, r *RoomInfo) *GameRoom {
 	dataCfg := CfgDataHandle(r.CfgId)
 	if int32(p.balance) < dataCfg.MinTakeIn {
 		balance := strconv.FormatFloat(p.balance, 'f', 2, 64)
-		msg := pb_msg.SvrMsgS2C{}
-		msg.Code = RECODE_PLAYERMONEY
-		msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
-		msg.TipType = pb_msg.Enum_SvrTipType_WARN
+		msg := &pb_msg.SvrMsgS2C{}
+		msg.Code = new(int32)
+		msg.TipType = (*pb_msg.Enum_SvrTipType)(new(int32))
+		*msg.Code = RECODE_PLAYERMONEY
+		*msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
+		*msg.TipType = pb_msg.Enum_SvrTipType_WARN
 		p.connAgent.WriteMsg(&msg)
 
 		log.Debug("玩家金额不足，创建房间失败 ~")
@@ -52,7 +53,7 @@ func (gh *GameHall) CreateRoom(p *Player, r *RoomInfo) *GameRoom {
 func (gh *GameHall) FindAvailableRoom(p *Player, r *RoomInfo) *GameRoom {
 	for _, room := range gh.roomList {
 		dataCfg := CfgDataHandle(r.CfgId)
-		fmt.Println("2~22 :", p.balance, r.ActionTimeS, r.MaxPlayer)
+		fmt.Println("QuickStart Config :", p.balance, r.ActionTimeS, r.MaxPlayer)
 		if dataCfg.MinTakeIn < int32(p.balance) && room.IsRoomActionTimes(int32(r.ActionTimeS)) &&
 			room.IsPlayerMaxNum(r.MaxPlayer) && room.IsCanJoin() && room.IsRoomPwd(r.Pwd) {
 			return room
@@ -86,21 +87,12 @@ func (gh *GameHall) PlayerJoinRoom(p *Player, rid string, pwd string) uint8 {
 	for _, room := range gh.roomList {
 
 		if room.roomInfo.RoomId != rid {
-			msg := pb_msg.SvrMsgS2C{}
-			msg.Code = RECODE_FINDROOM
-			msg.TipType = pb_msg.Enum_SvrTipType_WARN
-			p.connAgent.WriteMsg(&msg)
-
+			p.SendConfigMsg(RECODE_FINDROOM, pb_msg.Enum_SvrTipType_WARN)
 			log.Debug("请求加入的房间号不存在~")
 			return 0
 		}
-
 		if !room.IsRoomPwd(pwd) {
-			msg := pb_msg.SvrMsgS2C{}
-			msg.Code = RECODE_JOINROOMPWD
-			msg.TipType = pb_msg.Enum_SvrTipType_WARN
-			p.connAgent.WriteMsg(&msg)
-
+			p.SendConfigMsg(RECODE_JOINROOMPWD, pb_msg.Enum_SvrTipType_WARN)
 			log.Debug("加入房间密码输入错误~")
 			return 0
 		}
@@ -108,22 +100,20 @@ func (gh *GameHall) PlayerJoinRoom(p *Player, rid string, pwd string) uint8 {
 		dataCfg := CfgDataHandle(room.roomInfo.CfgId)
 		if int32(p.balance) < dataCfg.MinTakeIn {
 			balance := strconv.FormatFloat(p.balance, 'f', 2, 64)
-			msg := pb_msg.SvrMsgS2C{}
-			msg.Code = RECODE_PLAYERMONEY
-			msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
-			msg.TipType = pb_msg.Enum_SvrTipType_WARN
-			p.connAgent.WriteMsg(&msg)
+			msg := &pb_msg.SvrMsgS2C{}
+			msg.Code = new(int32)
+			msg.Data = new(string)
+			msg.TipType = (*pb_msg.Enum_SvrTipType)(new(int32))
+			*msg.Code = RECODE_PLAYERMONEY
+			*msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
+			*msg.TipType = pb_msg.Enum_SvrTipType_WARN
+			p.connAgent.WriteMsg(msg)
 
 			log.Debug("玩家金额不足，进入房间失败~")
 			return 0
 		}
-
 		if !room.IsCanJoin() {
-			msg := pb_msg.SvrMsgS2C{}
-			msg.Code = RECODE_PERSONNUM
-			msg.TipType = pb_msg.Enum_SvrTipType_WARN
-			p.connAgent.WriteMsg(&msg)
-
+			p.SendConfigMsg(RECODE_PERSONNUM, pb_msg.Enum_SvrTipType_WARN)
 			log.Debug("房间人数已满，加入房间失败~")
 			return 0
 		}

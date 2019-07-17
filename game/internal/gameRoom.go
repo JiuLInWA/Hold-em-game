@@ -173,11 +173,7 @@ func (gr *GameRoom) KickPlayer() {
 	for _, v := range gr.PlayerList {
 		if v != nil {
 			if v.chips < float64(gr.BB) {
-				msg := pb_msg.SvrMsgS2C{}
-				msg.Code = RECODE_NOTCHIPS
-				msg.TipType = pb_msg.Enum_SvrTipType_WARN
-				v.connAgent.WriteMsg(&msg)
-
+				v.SendConfigMsg(RECODE_NOTCHIPS, pb_msg.Enum_SvrTipType_WARN)
 				log.Debug("玩家带入筹码已不足~")
 				v.PlayerExitRoom()
 			}
@@ -396,11 +392,8 @@ func (gr *GameRoom) Running() {
 		for _, v := range gr.AllPlayer {
 			if v != nil {
 				if v.IsOnLine == false {
-					msg := pb_msg.SvrMsgS2C{}
-					msg.Code = RECODE_LOSTCONNECT
-					msg.TipType = pb_msg.Enum_SvrTipType_MSG
-					v.connAgent.WriteMsg(&msg)
-
+					//发送配置消息给前端，用户已断线
+					v.SendConfigMsg(RECODE_LOSTCONNECT, pb_msg.Enum_SvrTipType_MSG)
 					log.Debug("用户已掉线,直接踢出房间~")
 					v.PlayerExitRoom()
 				}
@@ -446,7 +439,6 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 
 	// 返回前端房间信息
 	roomData := p.RspEnterRoom()
-
 	p.connAgent.WriteMsg(roomData)
 
 	return uint8(p.chair)
@@ -491,20 +483,20 @@ func (gr *GameRoom) ExitFromRoom(p *Player) {
 			//给其他玩家广播该用户已下线！
 			data := &pb_msg.LoginResultS2C{}
 			data.PlayerInfo = new(pb_msg.PlayerInfo)
-			data.PlayerInfo.Id = p.ID
-			data.PlayerInfo.Name = p.name
-			data.PlayerInfo.HeadImg = p.headImg
-			data.PlayerInfo.Balance = p.balance
+			data.PlayerInfo.Id = &p.ID
+			data.PlayerInfo.Name = &p.name
+			data.PlayerInfo.Face = &p.headImg
+			data.PlayerInfo.Balance = &p.balance
 
 			gr.Broadcast(data)
 		}
 
 		data := &pb_msg.ExitRoomS2C{}
 		data.PlayerInfo = new(pb_msg.PlayerInfo)
-		data.PlayerInfo.Id = p.ID
-		data.PlayerInfo.Name = p.name
-		data.PlayerInfo.HeadImg = p.headImg
-		data.PlayerInfo.Balance = p.balance
+		data.PlayerInfo.Id = &p.ID
+		data.PlayerInfo.Name = &p.name
+		data.PlayerInfo.Face = &p.headImg
+		data.PlayerInfo.Balance = &p.balance
 
 		p.connAgent.WriteMsg(data)
 	}

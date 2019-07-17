@@ -1,5 +1,3 @@
-syntax = "proto3";
-
 package pb_msg;
 
 enum Enum_SvrTipType {
@@ -15,39 +13,39 @@ message Ping_c2s {
 
 //--1
 message Pong_s2c {
-    int64 serverTime = 1; // 服务器时间戳
+    required int64 serverTime = 1; // 服务器时间戳
 }
 
 //--2
 message SvrMsg_s2c {
-    int32 code = 1; // 消息代码
-    string data = 2; // 消息参数
-    Enum_SvrTipType tipType = 3; // 消息类型
+    required int32 code = 1; // 消息代码
+    required string data = 2; // 消息参数
+    required Enum_SvrTipType tipType = 3; // 消息类型
 }
 
 // 玩家基础信息
 message PlayerInfo {
-    string id = 1; // 玩家ID
-    string name = 2; // 玩家名字
-    string headImg = 3; // 玩家头像
-    double balance = 4; // 账户余额
+    required string id = 1; // 玩家ID
+    required string name = 2; // 玩家名字
+    required string face = 3; // 玩家头像
+    required double balance = 4; // 账户余额
 }
 
 // 登录信息
 message LoginInfo {
-    string id = 1;
-    string game_id = 2;
-    string server_url = 3; // 地址和端口
+    required string id = 1;
+    required string game_id = 2;
+    required string server_url = 3; // 地址和端口
 }
 
 //--3
 message Login_c2s {
-    LoginInfo loginInfo = 1;
+    required LoginInfo loginInfo = 1;
 }
 
 //--4
 message LoginResult_s2c {
-    PlayerInfo playerInfo = 1;
+    required PlayerInfo playerInfo = 1;
 }
 
 // 牌花色
@@ -134,99 +132,99 @@ enum Enum_ActionTime_s {
 message CardSuitData {
     repeated int32 handCardKeys = 1; // 组成牌型的手牌
     repeated int32 publicCardKeys = 2; // 组成牌型的公牌
-    Enum_CardSuit suitPattern = 3; // 牌型
+    required Enum_CardSuit suitPattern = 3; // 牌型
 }
 
 // 房间基础信息
 message RoomInfo {
-    string roomId = 1; // 房间号Id
-    string cfgId = 2; // 房间进入设定
-    int32 maxPlayer = 3; // 最大玩家数
-    Enum_ActionTime_s actionTime_s = 4; // 房间行动速度
-    string pwd = 5; // 房间密码
+    optional string roomId = 1; // 房间号Id
+    required string cfgId = 2; // 房间进入设定
+    required int32 maxPlayer = 3; // 最大玩家数
+    required Enum_ActionTime_s actionTime_s = 4; // 房间行动速度
+    optional string pwd = 5; // 房间密码
 }
 
 // 玩家数据
 message PlayerData {
-    PlayerInfo playerInfo = 1; // 玩家基础信息
-    int32 position = 2; // 房间座位号（未入座给-1）
-    bool isRaised = 3; // 本轮是否已经raise过(每个玩家每轮只有一次raise的机会)
-    Enum_PlayerStatus playerStatus = 4; // 本轮玩家表态
-    double dropedBets = 5; // 玩家状态为跟牌、加注时最终要下的赌注额
-    double dropedBetsSum = 6; // 这局中总共下注了多少
+    required PlayerInfo playerInfo = 1; // 玩家基础信息
+    required int32 position = 2; // 房间座位号（未入座给-1）
+    required bool isRaised = 3; // 本轮是否已经raise过(每个玩家每轮只有一次raise的机会)
+    required Enum_PlayerStatus playerStatus = 4; // 本轮玩家表态
+    required double dropedBets = 5; // 玩家状态为跟牌、加注时最终要下的赌注额
+    required double dropedBetsSum = 6; // 这局中总共下注了多少
     repeated int32 cardKeys = 7; // 玩家手牌
-    CardSuitData cardSuitData = 8; // 玩家手牌和公牌能组成的牌型数据
-    bool isWinner = 9; // 玩家是否赢家
-    Enum_Blind blind = 10; // 盲注类型
-    bool isButton = 11; // 是否庄家
-    bool isAllIn = 12; // 是否已经AllIn
-    bool isSelf = 13; // 是否玩家自己
-    double resultMoney = 14; // 本局游戏结束时收到的钱
+    required CardSuitData cardSuitData = 8; // 玩家手牌和公牌能组成的牌型数据
+    required bool isWinner = 9; // 玩家是否赢家
+    required Enum_Blind blind = 10; // 盲注类型
+    required bool isButton = 11; // 是否庄家
+    required bool isAllIn = 12; // 是否已经AllIn
+    required bool isSelf = 13; // 是否玩家自己
+    required double resultMoney = 14; // 本局游戏结束时收到的钱
 }
 
 // 房间数据
 message RoomData {
-    RoomInfo roomInfo = 1; // 房间基础信息
-    bool isStepEnd = 2; // 是否本轮结束(将玩家筹码飞到注池)
-    Enum_GameStep gameStep = 3; // 当前游戏阶段状态
-    double minRaise = 4; // 加注最小值（本轮水位）
-    int32 activePos = 5; // 当前正在行动的玩家座位号
-    int64 nextStepTs = 6; // 下一个阶段的时间戳
-    double pot = 7; // 赌注池当前总共有多少钱
+    required RoomInfo roomInfo = 1; // 房间基础信息
+    required bool isStepEnd = 2; // 是否本轮结束(将玩家筹码飞到注池)
+    required Enum_GameStep gameStep = 3; // 当前游戏阶段状态
+    required double minRaise = 4; // 加注最小值（本轮水位）
+    required int32 activePos = 5; // 当前正在行动的玩家座位号
+    required int64 nextStepTs = 6; // 下一个阶段的时间戳
+    required double pot = 7; // 赌注池当前总共有多少钱
     repeated int32 publicCardKeys = 8; // 桌面公牌
     repeated PlayerData playerDatas = 9; // 房间玩家数据
 }
 
 //--5 根据房间条件快速匹配一张牌桌
 message QuickStart_c2s {
-    RoomInfo roomInfo = 1;
+    required RoomInfo roomInfo = 1;
 }
 
 //--6 创建房间请求
 message CreateRoom_c2s {
-    RoomInfo roomInfo = 1;
+    required RoomInfo roomInfo = 1;
 }
 
 //--7 加入房间请求
 message JoinRoom_c2s {
-    string roomId = 1;
-    string pwd = 2;
+    required string roomId = 1;
+    required string pwd = 2;
 }
 
 //--8 进入房间
 message EnterRoom_s2c {
-    RoomData roomData = 1;
+    required RoomData roomData = 1;
 }
 
 //--9 退出房间请求
 message ExitRoom_c2s {
-    string Id = 1;
+    required string Id = 1;
 }
 
 //--10 退出房间
 message ExitRoom_s2c {
-    PlayerInfo playerInfo = 1;
+    required PlayerInfo playerInfo = 1;
 }
 
 //--11 玩家加入
 message OtherPlayerJoin_s2c {
-    PlayerData playerData = 1; //新加入的玩家
+    required PlayerData playerData = 1; //新加入的玩家
 }
 
 //--12 玩家离场（观战也算离场，只要不在桌上）
 message OtherPlayerLeave_s2c {
-    int32 position = 1; //离开的玩家离场前的座位号
-    double pot = 2; //玩家离场时如果有下注，则注码要充公到pot里， 所以要刷新pot数据
+    required int32 position = 1; //离开的玩家离场前的座位号
+    required double pot = 2; //玩家离场时如果有下注，则注码要充公到pot里， 所以要刷新pot数据
 }
 
 //--13 玩家入座 请求
 message SitDown_c2s {
-    int32 position = 1;
+    required int32 position = 1;
 }
 
 //--14 玩家入座
 message SitDown_s2c {
-    RoomData roomData = 1;
+    required RoomData roomData = 1;
 }
 
 //--15 玩家离座观战 请求
@@ -236,11 +234,25 @@ message StandUp_c2s {
 
 //--16 玩家离座观战
 message StandUp_s2c {
-    RoomData roomData = 1;
+    required RoomData roomData = 1;
 }
 
 //--17 游戏阶段变更
 message GameStepChange_s2c {
-    RoomData roomData = 1;
+    required RoomData roomData = 1;
 }
 
+//--18 行动的玩家变更
+message ActionPlayerChanged_s2c{
+    required RoomData roomData = 1;
+}
+
+//--19 玩家行动 命令
+message PlayerAction_c2s{
+    required Enum_ActionOptions action = 1;
+}
+
+//--20 玩家行动
+message PlayerAction_s2c{
+    required RoomData roomData = 1;
+}

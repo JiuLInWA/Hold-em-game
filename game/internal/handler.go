@@ -46,7 +46,7 @@ func handlePing(args []interface{}) {
 		pingTime := time.Now().UnixNano() / 1e6
 
 		pong := &pb_msg.PongS2C{
-			ServerTime: pingTime,
+			ServerTime: &pingTime,
 		}
 		// 给发送者回应一个 Hello 消息
 		a.WriteMsg(pong)
@@ -73,10 +73,10 @@ func handleLogin(args []interface{}) {
 
 	rsp := &pb_msg.LoginResultS2C{}
 	rsp.PlayerInfo = new(pb_msg.PlayerInfo)
-	rsp.PlayerInfo.Id = data.Id
-	rsp.PlayerInfo.Name = data.Name
-	rsp.PlayerInfo.HeadImg = data.HeadImg
-	rsp.PlayerInfo.Balance = data.Balance
+	rsp.PlayerInfo.Id = &data.Id
+	rsp.PlayerInfo.Name = &data.Name
+	rsp.PlayerInfo.Face = &data.Face
+	rsp.PlayerInfo.Balance = &data.Balance
 
 	fmt.Println("UserLogin data ~ :", rsp)
 	a.WriteMsg(rsp)
@@ -96,16 +96,15 @@ func handleLogin(args []interface{}) {
 func handleQuickStart(args []interface{}) {
 	m := args[0].(*pb_msg.QuickStartC2S)
 	a := args[1].(gate.Agent)
+
 	p, ok := a.UserData().(*Player)
 	log.Debug("handleQuickStart 快速匹配房间 :%v", p.ID)
 
 	if ok {
 		r := new(RoomInfo)
-		r.RoomId = m.RoomInfo.RoomId
-		r.CfgId = m.RoomInfo.CfgId
-		r.MaxPlayer = m.RoomInfo.MaxPlayer
-		r.ActionTimeS = m.RoomInfo.ActionTimeS
-		r.Pwd = m.RoomInfo.Pwd
+		r.CfgId = *m.RoomInfo.CfgId
+		r.MaxPlayer = *m.RoomInfo.MaxPlayer
+		r.ActionTimeS = *m.RoomInfo.ActionTimeS
 
 		gameHall.PlayerQuickStart(p, r)
 	}
@@ -120,11 +119,10 @@ func handleCreatRoom(args []interface{}) {
 
 	if ok {
 		r := new(RoomInfo)
-		r.RoomId = m.RoomInfo.RoomId
-		r.CfgId = m.RoomInfo.CfgId
-		r.MaxPlayer = m.RoomInfo.MaxPlayer
-		r.ActionTimeS = m.RoomInfo.ActionTimeS
-		r.Pwd = m.RoomInfo.Pwd
+		r.CfgId = *m.RoomInfo.CfgId
+		r.MaxPlayer = *m.RoomInfo.MaxPlayer
+		r.ActionTimeS = *m.RoomInfo.ActionTimeS
+		r.Pwd = *m.RoomInfo.Pwd
 
 		gameHall.PlayerCreatRoom(p, r)
 	}
@@ -138,7 +136,7 @@ func handleJoinRoom(args []interface{}) {
 	log.Debug("handleJoinRoom 用户加入房间 ~ :%v", p.ID)
 
 	if ok {
-		gameHall.PlayerJoinRoom(p, m.RoomId, m.Pwd)
+		gameHall.PlayerJoinRoom(p, *m.RoomId, *m.Pwd)
 	}
 }
 
@@ -161,7 +159,7 @@ func handleSitDown(args []interface{}) {
 	log.Debug("handleSitDown 玩家坐下座位 ~")
 
 	if ok {
-		p.SitDownTable(p.room, m.Position)
+		p.SitDownTable(p.room, *m.Position)
 	}
 }
 

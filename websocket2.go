@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
+	"github.com/name5566/leaf/log"
 	websocket2 "golang.org/x/net/websocket"
 	"net"
 	"net/url"
@@ -47,9 +48,13 @@ func tcpMsg1() []byte {
 
 func wsMsg1() []byte {
 	// 记得一定要对应消息号 在FindMsgId()函数
-	message := &pb_msg.PingC2S{
+	message := &pb_msg.QuickStartC2S{
+		RoomInfo: &pb_msg.RoomInfo{
+			CfgId:       "1",
+			MaxPlayer:   9,
+			ActionTimeS: 15,
+		},
 	}
-
 	payload, err := proto.Marshal(message)
 	if err != nil {
 		fmt.Println("Marshal error ", err)
@@ -133,6 +138,16 @@ func wsTest1() {
 	if err != nil {
 		fmt.Println("[write error] ", err)
 	}
+	n, msg, err1 := conn.ReadMessage()
+	if err1 != nil {
+		log.Error("readMessage err")
+	}
+	fmt.Println("nnnnnnnnnnnnn:", n)
+
+	e := &pb_msg.EnterRoomS2C{}
+	proto.Unmarshal(msg, e)
+	fmt.Println("ddddddddddddddddddddddddddd:",e)
+
 }
 
 func ws2Test1() {
