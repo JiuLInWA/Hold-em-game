@@ -46,8 +46,9 @@ type Player struct {
 	blind         pb_msg.Enum_Blind        //盲注类型
 	isButton      bool                     //是否庄家
 	isAllIn       bool                     //是否已经AllIn
-	isSelf        bool                     //是否玩家自己
 	resultMoney   float64                  //本局游戏结束时收到的钱
+
+	action int32 //玩家行动命令
 
 	chips    float64   //带入筹码
 	room     *GameRoom //所在房间
@@ -60,8 +61,7 @@ func (p *Player) Init() {
 	p.index = 0
 
 	//TODO 用户登录创建玩家初始化设定，后面根据拿去中心数据做修改
-	p.name = "Hold-em"
-	p.headImg = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRB45_5R6pdUp4xVFZ83dcA7BJkiSYjW8h6Z92uJo9WBkhbAMgN"
+	p.headImg = "https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1563442244793&di=945b2375a80b622e2ff3d83e6ac2153b&imgtype=0&src=http%3A%2F%2F1814.img.pp.sohu.com.cn%2Fimages%2Fblog%2F2008%2F11%2F1%2F13%2F20%2F11dfe567377g213.jpg"
 	p.balance = 4000
 
 	p.IsRaised = false
@@ -73,7 +73,6 @@ func (p *Player) Init() {
 	p.blind = pb_msg.Enum_Blind_NO_BLIND
 	p.isButton = false
 	p.isAllIn = false
-	p.isSelf = false
 	p.resultMoney = 0
 	p.chips = 0
 	p.room = nil
@@ -161,7 +160,7 @@ func CreatePlayer() *Player {
 //PlayerRegister 以id进行玩家注册，每个玩家只能有唯一ID，如果有相同的ID注册 需要关闭之前相同ID的玩家
 func PlayerRegister(ID string, neo *Player) {
 	//先检查该ID玩家是否已经注册过
-	fmt.Println("PlayerRegister ~ :", ID)
+	log.Debug("PlayerRegister ~ :%v", ID)
 	oldp, ok := mapUserID2Player[ID]
 	if ok {
 		// A、B同一账号，A处于登陆状态，B登陆把A挤掉，发送消息给前端做处理
@@ -169,7 +168,7 @@ func PlayerRegister(ID string, neo *Player) {
 		log.Debug("用户已在其他地方登录 ~")
 		log.Debug("force destroy player who after login")
 
-		oldp.SendConfigMsg(RECODE_PLAYERDESTORY, pb_msg.Enum_SvrTipType_WARN)
+		oldp.SendConfigMsg(RECODE_PLAYERDESTORY, data, pb_msg.Enum_SvrTipType_WARN)
 
 		// B用户登录，主动断掉A用户
 		oldp.connAgent.Destroy()
@@ -211,12 +210,13 @@ func DeletePlayer(p *Player) {
 //-----------------------------------------
 
 //SendConfigMsg 返回客户端配置消息
-func (p *Player) SendConfigMsg(code int32, tipType pb_msg.Enum_SvrTipType) {
+func (p *Player) SendConfigMsg(code int32, data string, tipType pb_msg.Enum_SvrTipType) {
 	msg := &pb_msg.SvrMsgS2C{}
 	msg.Code = new(int32)
 	msg.Data = new(string)
 	msg.TipType = (*pb_msg.Enum_SvrTipType)(new(int32))
 	*msg.Code = code
+	*msg.Data = data
 	*msg.TipType = tipType
 	p.connAgent.WriteMsg(msg)
 }
@@ -293,7 +293,6 @@ func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
 			data.Blind = &v.blind
 			data.IsButton = &v.isButton
 			data.IsAllIn = &v.isAllIn
-			data.IsSelf = &v.isSelf
 			data.ResultMoney = &v.resultMoney
 			er.RoomData.PlayerDatas = append(er.RoomData.PlayerDatas, data)
 		}
@@ -325,7 +324,6 @@ func (p *Player) OtherPlayerJoin() {
 	pl.PlayerData.Blind = &p.blind
 	pl.PlayerData.IsButton = &p.isButton
 	pl.PlayerData.IsAllIn = &p.isAllIn
-	pl.PlayerData.IsSelf = &p.isSelf
 	pl.PlayerData.ResultMoney = &p.resultMoney
 
 	//广播新进入玩家信息
@@ -342,23 +340,23 @@ func (p *Player) OtherPlayerLeave() {
 }
 
 //SitDownTable 玩家坐下座位
-func (p *Player) SitDownTable(gr *GameRoom, pos int32) {
+func (p *Player) SitDownTable(pos int32) {
 
-	gr.curPlayerNum++
+	p.room.curPlayerNum++
 	p.chair = pos
-	gr.PlayerList[p.chair] = p
+	p.room.PlayerList[p.chair] = p
 
 	//新加入的玩家信息
 	p.OtherPlayerJoin()
 
-	if gr.Status != emRoomStateRun {
+	if p.room.Status != emRoomStateRun {
 		// RUN
-		gr.Running()
+		p.room.Running()
 	} else {
 		// 如果已经在Running，游戏已经开始，玩家则为弃牌状态，则广播给其他玩家
 		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
 		enter := p.RspEnterRoom()
-		gr.Broadcast(enter)
+		p.room.Broadcast(enter)
 	}
 
 	// 返回前端房间信息
@@ -370,6 +368,12 @@ func (p *Player) SitDownTable(gr *GameRoom, pos int32) {
 
 //StandUpBattle 玩家站起观战
 func (p *Player) StandUpBattle() {
+	//判断玩家是否当前行动玩家，如果是则直接弃牌站起
+	if p.room.activePos == p.chair {
+		//TODO 直接弃牌，设为观战玩家
+		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
+
+	}
 	//玩家离场
 	p.room.curPlayerNum--
 	p.room.PlayerList[p.chair] = nil
@@ -381,4 +385,12 @@ func (p *Player) StandUpBattle() {
 	s := pb_msg.SitDownS2C{}
 	s.RoomData = e.RoomData
 	p.room.Broadcast(s)
+}
+
+//GetActionState 获取玩家状态
+func (p *Player) GetActionState(act int32) {
+	//p.action = act
+	switch act {
+
+	}
 }

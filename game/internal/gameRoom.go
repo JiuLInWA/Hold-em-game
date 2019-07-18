@@ -173,7 +173,7 @@ func (gr *GameRoom) KickPlayer() {
 	for _, v := range gr.PlayerList {
 		if v != nil {
 			if v.chips < float64(gr.BB) {
-				v.SendConfigMsg(RECODE_NOTCHIPS, pb_msg.Enum_SvrTipType_WARN)
+				v.SendConfigMsg(RECODE_NOTCHIPS, data, pb_msg.Enum_SvrTipType_WARN)
 				log.Debug("玩家带入筹码已不足~")
 				v.PlayerExitRoom()
 			}
@@ -255,8 +255,13 @@ func (gr *GameRoom) action(pos uint32) {
 	}
 
 	gr.Each(pos, func(p *Player) bool {
-		//3、当前行动玩家座位号
+		//3、行动玩家是根据庄家的下一位玩家
 		gr.activePos = p.chair
+		e := p.RspEnterRoom()
+		action := pb_msg.ActionPlayerChangedS2C{}
+		action.RoomData = e.RoomData
+		//todo 广播还是指定用户发送
+		p.connAgent.WriteMsg(action)
 		log.Debug("行动玩家 ~ :%v", gr.activePos)
 
 		//1、设置每个玩家下注时间
@@ -393,12 +398,13 @@ func (gr *GameRoom) Running() {
 			if v != nil {
 				if v.IsOnLine == false {
 					//发送配置消息给前端，用户已断线
-					v.SendConfigMsg(RECODE_LOSTCONNECT, pb_msg.Enum_SvrTipType_MSG)
+					v.SendConfigMsg(RECODE_LOSTCONNECT, data, pb_msg.Enum_SvrTipType_MSG)
 					log.Debug("用户已掉线,直接踢出房间~")
 					v.PlayerExitRoom()
 				}
 			}
 		}
+		//重开遍历PlayerList列表的用户,开始游戏
 
 	} else {
 		return
@@ -421,7 +427,6 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 	//房间总人数
 	gr.AllPlayer = append(gr.AllPlayer, p)
 
-	p.isSelf = true
 	p.room = gr
 
 	//新加入的玩家信息
@@ -440,6 +445,7 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 	// 返回前端房间信息
 	roomData := p.RspEnterRoom()
 	p.connAgent.WriteMsg(roomData)
+	fmt.Println("roomdata", roomData)
 
 	return uint8(p.chair)
 }

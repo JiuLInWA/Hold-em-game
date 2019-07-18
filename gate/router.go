@@ -17,4 +17,5 @@ func init() {
 	msg.Processor.SetRouter(&pb_msg.ExitRoomC2S{}, game.ChanRPC)
 	msg.Processor.SetRouter(&pb_msg.SitDownC2S{}, game.ChanRPC)
 	msg.Processor.SetRouter(&pb_msg.StandUpC2S{}, game.ChanRPC)
+	msg.Processor.SetRouter(&pb_msg.PlayerActionC2S{}, game.ChanRPC)
 }

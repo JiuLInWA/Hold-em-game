@@ -29,6 +29,8 @@ var recodeText = map[int32]string{
 	RECODE_LOSTCONNECT:   "用户已掉线，直接踢出房间",
 }
 
+var data string
+
 func jsonData() {
 	reCode, err := json.Marshal(recodeText)
 	if err != nil {

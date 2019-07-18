@@ -84,14 +84,10 @@ enum Enum_CardSuit {
 
 // 玩家操作类型
 enum Enum_ActionOptions {
-    ACT_JOIN_ROOM = 0; // 加入房间
-    ACT_SIT = 1; // 坐下
-    ACT_STAND_UP = 2; // 离座
-    ACT_LEAVE_ROOM = 3; // 离开房间
-    ACT_FOLD = 4; // 弃牌
-    ACT_CALL = 5; // 跟牌
-    ACT_RAISE = 6; // 加注
-    ACT_CHECK = 7; // 过牌
+    ACT_FOLD = 0; // 弃牌
+    ACT_CALL = 1; // 跟牌
+    ACT_RAISE = 2; // 加注
+    ACT_CHECK = 3; // 过牌
 }
 
 // 盲注类型
@@ -158,8 +154,7 @@ message PlayerData {
     required Enum_Blind blind = 10; // 盲注类型
     required bool isButton = 11; // 是否庄家
     required bool isAllIn = 12; // 是否已经AllIn
-    required bool isSelf = 13; // 是否玩家自己
-    required double resultMoney = 14; // 本局游戏结束时收到的钱
+    required double resultMoney = 13; // 本局游戏结束时收到的钱
 }
 
 // 房间数据
@@ -243,16 +238,17 @@ message GameStepChange_s2c {
 }
 
 //--18 行动的玩家变更
-message ActionPlayerChanged_s2c{
+message ActionPlayerChanged_s2c {
     required RoomData roomData = 1;
 }
 
 //--19 玩家行动 命令
-message PlayerAction_c2s{
-    required Enum_ActionOptions action = 1;
+message PlayerAction_c2s {
+    optional double betAmount = 1;
+    required Enum_ActionOptions action = 2;
 }
 
 //--20 玩家行动
-message PlayerAction_s2c{
+message PlayerAction_s2c {
     required RoomData roomData = 1;
 }

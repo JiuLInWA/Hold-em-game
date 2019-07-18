@@ -12,7 +12,6 @@ func init() {
 
 }
 
-
 func rpcNewAgent(args []interface{}) {
 	a := args[0].(gate.Agent)
 
@@ -38,4 +37,3 @@ func rpcCloseAgent(args []interface{}) {
 	}
 	a.SetUserData(nil)
 }
-

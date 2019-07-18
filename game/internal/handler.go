@@ -20,6 +20,7 @@ func init() {
 	handler(&pb_msg.ExitRoomC2S{}, handleExitRoom)
 	handler(&pb_msg.SitDownC2S{}, handleSitDown)
 	handler(&pb_msg.StandUpC2S{}, handleStandUp)
+	handler(&pb_msg.PlayerActionC2S{}, handleAction)
 }
 
 // 异步处理
@@ -57,7 +58,7 @@ func handleLogin(args []interface{}) {
 	m := args[0].(*pb_msg.LoginC2S)
 	a := args[1].(gate.Agent)
 
-	log.Debug("handleLogin : %v", m.LoginInfo.Id)
+	log.Debug("handleLogin 用户成功登陆~ ")
 
 	p, ok := a.UserData().(*Player)
 	if ok {
@@ -159,7 +160,7 @@ func handleSitDown(args []interface{}) {
 	log.Debug("handleSitDown 玩家坐下座位 ~")
 
 	if ok {
-		p.SitDownTable(p.room, *m.Position)
+		p.SitDownTable(*m.Position)
 	}
 }
 
@@ -171,5 +172,18 @@ func handleStandUp(args []interface{}) {
 
 	if ok {
 		p.StandUpBattle()
+	}
+}
+
+func handleAction(args []interface{}) {
+	m := args[0].(*pb_msg.PlayerActionC2S)
+	a := args[1].(gate.Agent)
+
+	p, ok := a.UserData().(*Player)
+	log.Debug("handleAction 玩家开始行动 ~ ")
+
+	if ok {
+		act := int32(*m.Action)
+		p.GetActionState(act)
 	}
 }

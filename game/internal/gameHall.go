@@ -31,13 +31,8 @@ func (gh *GameHall) CreateRoom(p *Player, r *RoomInfo) *GameRoom {
 	dataCfg := CfgDataHandle(r.CfgId)
 	if int32(p.balance) < dataCfg.MinTakeIn {
 		balance := strconv.FormatFloat(p.balance, 'f', 2, 64)
-		msg := &pb_msg.SvrMsgS2C{}
-		msg.Code = new(int32)
-		msg.TipType = (*pb_msg.Enum_SvrTipType)(new(int32))
-		*msg.Code = RECODE_PLAYERMONEY
-		*msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
-		*msg.TipType = pb_msg.Enum_SvrTipType_WARN
-		p.connAgent.WriteMsg(&msg)
+		data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
+		p.SendConfigMsg(RECODE_PLAYERMONEY, data, pb_msg.Enum_SvrTipType_WARN)
 
 		log.Debug("玩家金额不足，创建房间失败 ~")
 		return nil
@@ -87,12 +82,12 @@ func (gh *GameHall) PlayerJoinRoom(p *Player, rid string, pwd string) uint8 {
 	for _, room := range gh.roomList {
 
 		if room.roomInfo.RoomId != rid {
-			p.SendConfigMsg(RECODE_FINDROOM, pb_msg.Enum_SvrTipType_WARN)
+			p.SendConfigMsg(RECODE_FINDROOM, data, pb_msg.Enum_SvrTipType_WARN)
 			log.Debug("请求加入的房间号不存在~")
 			return 0
 		}
 		if !room.IsRoomPwd(pwd) {
-			p.SendConfigMsg(RECODE_JOINROOMPWD, pb_msg.Enum_SvrTipType_WARN)
+			p.SendConfigMsg(RECODE_JOINROOMPWD, data, pb_msg.Enum_SvrTipType_WARN)
 			log.Debug("加入房间密码输入错误~")
 			return 0
 		}
@@ -100,20 +95,14 @@ func (gh *GameHall) PlayerJoinRoom(p *Player, rid string, pwd string) uint8 {
 		dataCfg := CfgDataHandle(room.roomInfo.CfgId)
 		if int32(p.balance) < dataCfg.MinTakeIn {
 			balance := strconv.FormatFloat(p.balance, 'f', 2, 64)
-			msg := &pb_msg.SvrMsgS2C{}
-			msg.Code = new(int32)
-			msg.Data = new(string)
-			msg.TipType = (*pb_msg.Enum_SvrTipType)(new(int32))
-			*msg.Code = RECODE_PLAYERMONEY
-			*msg.Data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
-			*msg.TipType = pb_msg.Enum_SvrTipType_WARN
-			p.connAgent.WriteMsg(msg)
+			data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
+			p.SendConfigMsg(RECODE_PLAYERMONEY, data, pb_msg.Enum_SvrTipType_WARN)
 
 			log.Debug("玩家金额不足，进入房间失败~")
 			return 0
 		}
 		if !room.IsCanJoin() {
-			p.SendConfigMsg(RECODE_PERSONNUM, pb_msg.Enum_SvrTipType_WARN)
+			p.SendConfigMsg(RECODE_PERSONNUM, data, pb_msg.Enum_SvrTipType_WARN)
 			log.Debug("房间人数已满，加入房间失败~")
 			return 0
 		}

@@ -34,7 +34,7 @@ func initMongoDB() {
 	var err error
 	session, err = mgo.DialWithInfo(mongoDBDialInfo)
 	if err != nil {
-		log.Fatal("数据库连接失败: ", err)
+		log.Fatal("数据库连接失败: %v ", err)
 	}
 	log.Debug("数据库连接成功~")
 
@@ -53,7 +53,7 @@ func connect(dbName, cName string) (*mgo.Session, *mgo.Collection) {
 type PlayerInfo struct {
 	Id      string  // 玩家ID
 	Name    string  // 玩家名字
-	Face string  // 玩家头像
+	Face    string  // 玩家头像
 	Balance float64 // 账户余额
 }
 
@@ -85,7 +85,7 @@ func InsertUserInfo(m *pb_msg.LoginC2S) (*PlayerInfo, error) {
 	p := &PlayerInfo{
 		Id:      *m.LoginInfo.Id,
 		Name:    *m.LoginInfo.Id,
-		Face: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRB45_5R6pdUp4xVFZ83dcA7BJkiSYjW8h6Z92uJo9WBkhbAMgN",
+		Face:    "https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1563442244793&di=945b2375a80b622e2ff3d83e6ac2153b&imgtype=0&src=http%3A%2F%2F1814.img.pp.sohu.com.cn%2Fimages%2Fblog%2F2008%2F11%2F1%2F13%2F20%2F11dfe567377g213.jpg",
 		Balance: 4000,
 	}
 
@@ -100,7 +100,7 @@ func (p *Player) update() error {
 	data := bson.M{"id": p.ID}
 
 	ud := &PlayerInfo{
-		Face: p.headImg,
+		Face:    p.headImg,
 		Balance: p.balance,
 	}
 	err := c.Update(data, ud)
