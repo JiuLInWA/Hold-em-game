@@ -258,7 +258,7 @@ func (gr *GameRoom) action(pos uint32) {
 		//3、行动玩家是根据庄家的下一位玩家
 		gr.activePos = p.chair
 		e := p.RspEnterRoom()
-		action := pb_msg.ActionPlayerChangedS2C{}
+		action := &pb_msg.ActionPlayerChangedS2C{}
 		action.RoomData = e.RoomData
 		//todo 广播还是指定用户发送
 		p.connAgent.WriteMsg(action)
@@ -358,10 +358,14 @@ func (gr *GameRoom) Running() {
 		gr.Each(0, func(p *Player) bool {
 			//1、生成玩家手牌,获取的是对应牌型生成二进制的数
 			p.cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take()}
-			log.Debug("玩家手牌 ~ :%v", p.cards.Hex())
+			p.cardSuitData.HandCardKeys = p.cards.HexInt()
 
+			log.Debug("获取牌型 ~ :%v", p.cards.Hex())
+			log.Debug("玩家手牌 ~ :%v", p.cards.HexInt())
 			//2、获取手牌类型,只有两个可能,1为高牌,2为一对
 			kind, _ := algorithm.De(p.cards.GetType())
+			p.cardSuitData.SuitPattern = pb_msg.Enum_CardSuit(kind)
+			fmt.Println("p.cardSuitData.SuitPattern",p.cardSuitData.SuitPattern)
 			log.Debug("手牌类型 ~ :%v", kind)
 
 			enter := p.RspEnterRoom()
@@ -377,6 +381,8 @@ func (gr *GameRoom) Running() {
 		//1、生成桌面公牌
 		gr.Cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take(), gr.Cards.Take()}
 		gr.Each(0, func(p *Player) bool {
+			//生成的桌面公牌赋值
+			p.cardSuitData.PublicCardKeys = gr.Cards.HexInt()
 			return true
 		})
 		log.Debug("桌面工牌 ~ :%v", gr.Cards)
@@ -426,6 +432,7 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 
 	//房间总人数
 	gr.AllPlayer = append(gr.AllPlayer, p)
+	fmt.Println("gr.AllPlayer",gr.AllPlayer)
 
 	p.room = gr
 
@@ -445,7 +452,7 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 	// 返回前端房间信息
 	roomData := p.RspEnterRoom()
 	p.connAgent.WriteMsg(roomData)
-	fmt.Println("roomdata", roomData)
+	fmt.Println(roomData)
 
 	return uint8(p.chair)
 }

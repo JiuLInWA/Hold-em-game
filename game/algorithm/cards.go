@@ -21,7 +21,7 @@ func (this *Cards) Shuffle() {
 		(*this)[i], (*this)[index] = (*this)[index], (*this)[i]
 	}
 	log.Debug("%#v",*this)
-	log.Debug("洗牌牌型数据 ~ :%v", len(*this))
+	//log.Debug("洗牌牌型数据 ~ :%v", len(*this))
 }
 
 // todo 两对和四张起脚牌的判定

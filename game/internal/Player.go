@@ -271,6 +271,7 @@ func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
 	er.RoomData.PublicCardKeys = p.room.publicCardKeys
 
 	for _, v := range p.room.AllPlayer {
+		fmt.Println("p.room.AllPlayer", p.room.AllPlayer)
 		if v != nil {
 			data := &pb_msg.PlayerData{}
 			data.PlayerInfo = new(pb_msg.PlayerInfo)
@@ -285,7 +286,7 @@ func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
 			data.DropedBetsSum = &v.dropedBetsSum
 			data.CardKeys = v.cardKeys
 			data.CardSuitData = new(pb_msg.CardSuitData)
-			v.cardSuitData = new(CardSuitData)
+			//v.cardSuitData = new(CardSuitData)
 			data.CardSuitData.HandCardKeys = v.cardSuitData.HandCardKeys
 			data.CardSuitData.PublicCardKeys = v.cardSuitData.PublicCardKeys
 			data.CardSuitData.SuitPattern = &v.cardSuitData.SuitPattern
