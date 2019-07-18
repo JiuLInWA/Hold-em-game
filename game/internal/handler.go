@@ -58,11 +58,12 @@ func handleLogin(args []interface{}) {
 	m := args[0].(*pb_msg.LoginC2S)
 	a := args[1].(gate.Agent)
 
-	log.Debug("handleLogin 用户成功登陆~ ")
-
 	p, ok := a.UserData().(*Player)
+	log.Debug("handleLogin 用户成功登陆~ :%v", p.ID)
+
 	if ok {
 		p.ID = m.GetLoginInfo().GetId()
+		p.name = m.GetLoginInfo().GetId()
 		PlayerRegister(p.ID, p)
 	}
 	//查看数据库用户ID是否存在，存在直接数据库返回数据,不存在插入数据在返回
@@ -99,7 +100,7 @@ func handleQuickStart(args []interface{}) {
 	a := args[1].(gate.Agent)
 
 	p, ok := a.UserData().(*Player)
-	log.Debug("handleQuickStart 快速匹配房间 :%v", p.ID)
+	log.Debug("handleQuickStart 快速匹配房间~ :%v", p.ID)
 
 	if ok {
 		r := new(RoomInfo)
@@ -116,7 +117,7 @@ func handleCreatRoom(args []interface{}) {
 	a := args[1].(gate.Agent)
 
 	p, ok := a.UserData().(*Player)
-	log.Debug("handleCreatRoom 用户创建房间 ~ :%v", p.ID)
+	log.Debug("handleCreatRoom 用户创建房间~ :%v", p.ID)
 
 	if ok {
 		r := new(RoomInfo)
@@ -134,7 +135,7 @@ func handleJoinRoom(args []interface{}) {
 	a := args[1].(gate.Agent)
 
 	p, ok := a.UserData().(*Player)
-	log.Debug("handleJoinRoom 用户加入房间 ~ :%v", p.ID)
+	log.Debug("handleJoinRoom 用户加入房间~ :%v", p.ID)
 
 	if ok {
 		gameHall.PlayerJoinRoom(p, *m.RoomId, *m.Pwd)
@@ -144,7 +145,7 @@ func handleJoinRoom(args []interface{}) {
 func handleExitRoom(args []interface{}) {
 	a := args[1].(gate.Agent)
 
-	log.Debug("handleExitRoom 用户退出房间 ~")
+	log.Debug("handleExitRoom 用户退出房间 ~ ")
 
 	p, ok := a.UserData().(*Player)
 	if ok {
@@ -157,7 +158,7 @@ func handleSitDown(args []interface{}) {
 	a := args[1].(gate.Agent)
 
 	p, ok := a.UserData().(*Player)
-	log.Debug("handleSitDown 玩家坐下座位 ~")
+	log.Debug("handleSitDown 玩家坐下座位 ~ ")
 
 	if ok {
 		p.SitDownTable(*m.Position)

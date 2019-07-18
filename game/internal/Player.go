@@ -61,7 +61,7 @@ func (p *Player) Init() {
 	p.index = 0
 
 	//TODO 用户登录创建玩家初始化设定，后面根据拿去中心数据做修改
-	p.headImg = "https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1563442244793&di=945b2375a80b622e2ff3d83e6ac2153b&imgtype=0&src=http%3A%2F%2F1814.img.pp.sohu.com.cn%2Fimages%2Fblog%2F2008%2F11%2F1%2F13%2F20%2F11dfe567377g213.jpg"
+	p.headImg = "http://1814.img.pp.sohu.com.cn/images/blog/2008/11/1/13/20/11dfe567377g213.jpg"
 	p.balance = 4000
 
 	p.IsRaised = false
