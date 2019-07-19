@@ -48,14 +48,18 @@ func tcpMsg1() []byte {
 
 func wsMsg1() []byte {
 	// 记得一定要对应消息号 在FindMsgId()函数
-	message := &pb_msg.QuickStartC2S{}
-	message.RoomInfo = new(pb_msg.RoomInfo)
-	message.RoomInfo.CfgId = new(string)
-	message.RoomInfo.MaxPlayer = new(int32)
-	message.RoomInfo.ActionTimeS = new(pb_msg.Enum_ActionTimeS)
-	*message.RoomInfo.CfgId = "1"
-	*message.RoomInfo.MaxPlayer = 3
-	*message.RoomInfo.ActionTimeS = 15
+	//message := &pb_msg.QuickStartC2S{}
+	//message.RoomInfo = new(pb_msg.RoomInfo)
+	//message.RoomInfo.CfgId = new(string)
+	//message.RoomInfo.MaxPlayer = new(int32)
+	//message.RoomInfo.ActionTimeS = new(pb_msg.Enum_ActionTimeS)
+	//*message.RoomInfo.CfgId = "1"
+	//*message.RoomInfo.MaxPlayer = 3
+	//*message.RoomInfo.ActionTimeS = 15
+	message := &pb_msg.PlayerActionC2S{}
+	message.BetAmount = new(float64)
+	message.Action = new(pb_msg.Enum_ActionOptions)
+	*message.Action = 1
 
 	payload, err := proto.Marshal(message)
 	if err != nil {
@@ -89,17 +93,27 @@ func wsMsg1() []byte {
 func findMsgID1(t string) uint16 {
 	// fixme 服务器中打印这个表
 	msgType2ID := map[string]uint16{
-		"*pb_msg.PingC2S":        0,
-		"*pb_msg.PongS2C":        1,
-		"*pb_msg.SvrMsgS2C":      2,
-		"*pb_msg.LoginC2S":       3,
-		"*pb_msg.LoginResultS2C": 4,
-		"*pb_msg.QuickStartC2S":  5,
-		"*pb_msg.CreateRoomC2S":  6,
-		"*pb_msg.JoinRoomC2S":    7,
-		"*pb_msg.EnterRoomS2C":   8,
-		"*pb_msg.ExitRoomC2S":    9,
-		"*pb_msg.ExitRoomS2C":    10,
+		"*pb_msg.PingC2S":                0,
+		"*pb_msg.PongS2C":                1,
+		"*pb_msg.SvrMsgS2C":              2,
+		"*pb_msg.LoginC2S":               3,
+		"*pb_msg.LoginResultS2C":         4,
+		"*pb_msg.QuickStartC2S":          5,
+		"*pb_msg.CreateRoomC2S":          6,
+		"*pb_msg.JoinRoomC2S":            7,
+		"*pb_msg.EnterRoomS2C":           8,
+		"*pb_msg.ExitRoomC2S":            9,
+		"*pb_msg.ExitRoomS2C":            10,
+		"*pb_msg.OtherPlayerJoinS2C":     11,
+		"*pb_msg.OtherPlayerLeaveS2C":    12,
+		"*pb_msg.SitDownC2S":             13,
+		"*pb_msg.SitDownS2C":             14,
+		"*pb_msg.StandUpC2S":             15,
+		"*pb_msg.StandUpS2C":             16,
+		"*pb_msg.GameStepChangeS2C":      17,
+		"*pb_msg.ActionPlayerChangedS2C": 18,
+		"*pb_msg.PlayerActionC2S":        19,
+		"*pb_msg.PlayerActionS2C":        20,
 	}
 
 	if id, ok := msgType2ID[t]; ok {

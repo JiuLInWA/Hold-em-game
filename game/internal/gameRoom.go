@@ -118,7 +118,7 @@ func (gr *GameRoom) IsRoomPwd(pwd string) bool {
 func (gr *GameRoom) FindAbleChair() int32 {
 	for chair, p := range gr.PlayerList {
 		if p == nil {
-			fmt.Println("座位号下标为~ :", uint32(chair))
+			log.Debug("座位号下标为~ :%v", uint32(chair))
 			return int32(chair)
 		}
 	}
@@ -161,10 +161,13 @@ func (gr *GameRoom) DragInRoomChips(p *Player) float64 {
 		p.balance = p.balance - float64(dataCfg.MaxTakeIn)
 		return float64(dataCfg.MaxTakeIn)
 	}
-
 	Balance := p.balance
 	p.balance = p.balance - p.balance
 
+	err := p.update()
+	if err != nil {
+		log.Error("DragInRoomChips更新失败 ~ :", err)
+	}
 	return Balance
 }
 
@@ -265,18 +268,16 @@ func (gr *GameRoom) action(pos uint32) {
 		log.Debug("行动玩家 ~ :%v", gr.activePos)
 
 		//1、设置每个玩家下注时间
-
 		//2、每个玩家下注状态
-		switch p.playerStatus {
-		case pb_msg.Enum_PlayerStatus_STATUS_WAITING:
-			break
-		case pb_msg.Enum_PlayerStatus_STATUS_RAISE:
-
-		case pb_msg.Enum_PlayerStatus_STATUS_CALL:
-		case pb_msg.Enum_PlayerStatus_STATUS_CHECK:
-		case pb_msg.Enum_PlayerStatus_STATUS_FOLD:
-		case pb_msg.Enum_PlayerStatus_STATUS_SHOW_DOWN:
-
+		switch p.action {
+		case pb_msg.Enum_ActionOptions_ACT_FOLD:
+			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
+		case pb_msg.Enum_ActionOptions_ACT_CALL:
+			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CALL
+		case pb_msg.Enum_ActionOptions_ACT_RAISE:
+			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_RAISE
+		case pb_msg.Enum_ActionOptions_ACT_CHECK:
+			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CHECK
 		}
 		//3、下注状态结束则停止时间，进行下一个玩家下注
 		//4、下注时间超时，还未下注则直接弃牌
@@ -298,7 +299,7 @@ func (gr *GameRoom) Running() {
 	gr.KickPlayer()
 
 	n := gr.PlayerLen()
-	fmt.Println("Running 当前房间玩家人数为 ~ :", n)
+	log.Debug("Running 当前房间玩家人数为 ~ :%v", n)
 
 	//当前房间人数存在2人及2人以上才开始游戏
 	if n >= 2 {
@@ -358,14 +359,12 @@ func (gr *GameRoom) Running() {
 		gr.Each(0, func(p *Player) bool {
 			//1、生成玩家手牌,获取的是对应牌型生成二进制的数
 			p.cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take()}
-			p.cardSuitData.HandCardKeys = p.cards.HexInt()
+			p.cardKeys = p.cards.HexInt()
 
 			log.Debug("获取牌型 ~ :%v", p.cards.Hex())
 			log.Debug("玩家手牌 ~ :%v", p.cards.HexInt())
 			//2、获取手牌类型,只有两个可能,1为高牌,2为一对
 			kind, _ := algorithm.De(p.cards.GetType())
-			p.cardSuitData.SuitPattern = pb_msg.Enum_CardSuit(kind)
-			fmt.Println("p.cardSuitData.SuitPattern",p.cardSuitData.SuitPattern)
 			log.Debug("手牌类型 ~ :%v", kind)
 
 			enter := p.RspEnterRoom()
@@ -380,9 +379,10 @@ func (gr *GameRoom) Running() {
 		//gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP
 		//1、生成桌面公牌
 		gr.Cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take(), gr.Cards.Take()}
+		//2、赋值
+		gr.publicCardKeys = gr.Cards.HexInt()
 		gr.Each(0, func(p *Player) bool {
 			//生成的桌面公牌赋值
-			p.cardSuitData.PublicCardKeys = gr.Cards.HexInt()
 			return true
 		})
 		log.Debug("桌面工牌 ~ :%v", gr.Cards)
@@ -420,19 +420,19 @@ func (gr *GameRoom) Running() {
 //PlayerJoin 玩家加入房间
 func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 
+	log.Debug("Player Join Room ~")
+
 	// 玩家带入筹码
 	p.chips = gr.DragInRoomChips(p)
 	log.Debug("玩家带入筹码 : %v", p.chips)
 	log.Debug("玩家剩余金额 : %v", p.balance)
 
-	fmt.Println("Player Join Room ~")
 	gr.curPlayerNum++
 	p.chair = gr.FindAbleChair()
 	gr.PlayerList[p.chair] = p
 
 	//房间总人数
 	gr.AllPlayer = append(gr.AllPlayer, p)
-	fmt.Println("gr.AllPlayer",gr.AllPlayer)
 
 	p.room = gr
 
@@ -479,6 +479,11 @@ func (gr *GameRoom) ExitFromRoom(p *Player) {
 		gr.PlayerList[p.chair] = nil
 	}
 	fmt.Println("ExitFromRoom curPlayerNum ~ :", gr.curPlayerNum)
+
+	err := p.update()
+	if err != nil {
+		log.Error("ExitFromRoom更新失败 ~ :", err)
+	}
 
 	for k, v := range gr.AllPlayer {
 		if v != nil {

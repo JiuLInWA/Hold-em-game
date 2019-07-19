@@ -184,7 +184,9 @@ func handleAction(args []interface{}) {
 	log.Debug("handleAction 玩家开始行动 ~ ")
 
 	if ok {
-		act := int32(*m.Action)
-		p.GetActionState(act)
+		amount := float64(*m.BetAmount)
+		p.dropedBets = amount
+		p.action = *m.Action
+		//p.GetActionState(amount, act)
 	}
 }

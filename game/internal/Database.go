@@ -85,7 +85,7 @@ func InsertUserInfo(m *pb_msg.LoginC2S) (*PlayerInfo, error) {
 	p := &PlayerInfo{
 		Id:      *m.LoginInfo.Id,
 		Name:    *m.LoginInfo.Id,
-		Face:   "http://1814.img.pp.sohu.com.cn/images/blog/2008/11/1/13/20/11dfe567377g213.jpg",
+		Face:    "http://1814.img.pp.sohu.com.cn/images/blog/2008/11/1/13/20/11dfe567377g213.jpg",
 		Balance: 4000,
 	}
 
@@ -100,6 +100,8 @@ func (p *Player) update() error {
 	data := bson.M{"id": p.ID}
 
 	ud := &PlayerInfo{
+		Id:      p.ID,
+		Name:    p.name,
 		Face:    p.headImg,
 		Balance: p.balance,
 	}

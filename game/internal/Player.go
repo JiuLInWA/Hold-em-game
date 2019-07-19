@@ -48,11 +48,10 @@ type Player struct {
 	isAllIn       bool                     //是否已经AllIn
 	resultMoney   float64                  //本局游戏结束时收到的钱
 
-	action int32 //玩家行动命令
-
-	chips    float64   //带入筹码
-	room     *GameRoom //所在房间
-	IsOnLine bool      //是否在线
+	action   pb_msg.Enum_ActionOptions //玩家行动命令
+	chips    float64                   //带入筹码
+	room     *GameRoom                 //所在房间
+	IsOnLine bool                      //是否在线
 }
 
 func (p *Player) Init() {
@@ -271,7 +270,6 @@ func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
 	er.RoomData.PublicCardKeys = p.room.publicCardKeys
 
 	for _, v := range p.room.AllPlayer {
-		fmt.Println("p.room.AllPlayer", p.room.AllPlayer)
 		if v != nil {
 			data := &pb_msg.PlayerData{}
 			data.PlayerInfo = new(pb_msg.PlayerInfo)
@@ -389,9 +387,8 @@ func (p *Player) StandUpBattle() {
 }
 
 //GetActionState 获取玩家状态
-func (p *Player) GetActionState(act int32) {
-	//p.action = act
-	switch act {
-
-	}
+func (p *Player) GetActionState(amount float64, act int32) {
+	p.dropedBets = amount
+	p.action = pb_msg.Enum_ActionOptions(act)
+	log.Debug("玩家行动状态2 金额: %v 状态: %v", p.dropedBets, p.action)
 }
