@@ -45,13 +45,15 @@ type GameRoom struct {
 	Status RoomStat
 
 	Timeout time.Duration
-	remain  int32   //记录每个阶段玩家的下注的数量
-	allin   int32   //allin玩家的数量
-	Chips   []int32 //所有玩家本局下的总筹码,对应player玩家
-	Pots    []int32 //奖池筹码数,第一项为主池，其他项(若存在)为边池
-	Button  uint32  //庄家座位号
-	SB      uint32  //小盲注
-	BB      uint32  //大盲注
+
+	preChips float64 //上一个玩家的下注金额
+	remain   int32   //记录每个阶段玩家的下注的数量
+	allin    int32   //allin玩家的数量
+	Chips    []int32 //所有玩家本局下的总筹码,对应player玩家
+	Pots     []int32 //奖池筹码数,第一项为主池，其他项(若存在)为边池
+	Button   uint32  //庄家座位号
+	SB       uint32  //小盲注
+	BB       uint32  //大盲注
 }
 
 //Init 房间初始化
@@ -226,6 +228,7 @@ func (gr *GameRoom) betting(p *Player, blind float64) {
 	p.dropedBetsSum = p.dropedBetsSum + blind
 	//总筹码变动
 	gr.pot = gr.pot + blind
+	fmt.Println("总筹码变动：", gr.pot)
 
 	//广播发送玩家盲注金额
 	msg := p.RspEnterRoom()
@@ -274,6 +277,8 @@ func (gr *GameRoom) action(pos uint32) {
 			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
 		case pb_msg.Enum_ActionOptions_ACT_CALL:
 			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CALL
+			//if p.room.preChips
+
 		case pb_msg.Enum_ActionOptions_ACT_RAISE:
 			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_RAISE
 		case pb_msg.Enum_ActionOptions_ACT_CHECK:
@@ -302,119 +307,115 @@ func (gr *GameRoom) Running() {
 	log.Debug("Running 当前房间玩家人数为 ~ :%v", n)
 
 	//当前房间人数存在2人及2人以上才开始游戏
-	if n >= 2 {
-		log.Debug("this room is Running! ~")
-
-		gr.pot = 0
-		gr.minRaise = 0
-		gr.publicCardKeys = []int32{}
-		gr.Pots = []int32{}
-
-		gr.remain = 0
-		gr.allin = 0
-
-		gr.Status = emRoomStateRun
-		gr.gameStep = pb_msg.Enum_GameStep_STEP_WAITING
-
-		//1、产生庄家
-		var dealer *Player
-		button := gr.Button - 1
-		gr.Each((button+1)%uint32(gr.RoomMaxPlayer()), func(p *Player) bool {
-			gr.Button = uint32(p.chair)
-			dealer = p
-			return false
-		})
-		dealer.isButton = true
-
-		//获取庄家数据，进行广播，因为重新开始会有多名玩家
-		enter := dealer.RspEnterRoom()
-		gr.Broadcast(enter)
-		log.Debug("庄家的座位号为 : %v", dealer.chair)
-
-		//2、洗牌
-		gr.Cards.Shuffle()
-
-		//3、产生小盲
-		sb := gr.Blind(dealer.chair)
-		sb.blind = pb_msg.Enum_Blind_SMALL_BLIND
-		log.Debug("小盲注座位号为 : %v", sb.chair)
-		//4、小盲注下注
-		gr.betting(sb, float64(gr.SB))
-
-		//5、产生大盲
-		if n >= 3 {
-			bb := gr.Blind(sb.chair)
-			sb.blind = pb_msg.Enum_Blind_BIG_BLIND
-			log.Debug("大盲注座位号为 : %v", bb.chair)
-			//6、大盲注下注
-			gr.betting(bb, float64(gr.BB))
-		}
-
-		// Round 1：preFlop 开始发手牌,下注
-		gr.gameStep = pb_msg.Enum_GameStep_STEP_PRE_FLOP
-
-		//准备阶段
-		gr.readyPlay()
-
-		gr.Each(0, func(p *Player) bool {
-			//1、生成玩家手牌,获取的是对应牌型生成二进制的数
-			p.cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take()}
-			p.cardKeys = p.cards.HexInt()
-
-			log.Debug("获取牌型 ~ :%v", p.cards.Hex())
-			log.Debug("玩家手牌 ~ :%v", p.cards.HexInt())
-			//2、获取手牌类型,只有两个可能,1为高牌,2为一对
-			kind, _ := algorithm.De(p.cards.GetType())
-			log.Debug("手牌类型 ~ :%v", kind)
-
-			enter := p.RspEnterRoom()
-			p.connAgent.WriteMsg(enter)
-			return true
-		})
-		//行动, 下注, 如果玩家全部摊牌直接比牌
-		gr.action(0)
-
-		//b、是否本轮已经结束
-		// Round 2：Flop 翻牌圈,牌桌上发3张公牌
-		//gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP
-		//1、生成桌面公牌
-		gr.Cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take(), gr.Cards.Take()}
-		//2、赋值
-		gr.publicCardKeys = gr.Cards.HexInt()
-		gr.Each(0, func(p *Player) bool {
-			//生成的桌面公牌赋值
-			return true
-		})
-		log.Debug("桌面工牌 ~ :%v", gr.Cards)
-
-		// Round 3：Turn 转牌圈,牌桌上发第4张公共牌
-		//gr.gameStep = pb_msg.Enum_GameStep_STEP_TURN
-
-		// Round 4：River 河牌圈,牌桌上发第5张公共牌
-		//gr.gameStep = pb_msg.Enum_GameStep_STEP_RIVER
-
-		// showdown 摊开底牌,开牌比大小
-		//gr.gameStep = pb_msg.Enum_GameStep_STEP_SHOW_DOWN
-
-		//6、游戏结束，停留5秒，重新开始游戏
-		//gr.Status = emRoomStateOver
-
-		//遍历房间所有用户，玩家OnLine状态为false说明用户已经断线，直接踢掉
-		for _, v := range gr.AllPlayer {
-			if v != nil {
-				if v.IsOnLine == false {
-					//发送配置消息给前端，用户已断线
-					v.SendConfigMsg(RECODE_LOSTCONNECT, data, pb_msg.Enum_SvrTipType_MSG)
-					log.Debug("用户已掉线,直接踢出房间~")
-					v.PlayerExitRoom()
-				}
-			}
-		}
-		//重开遍历PlayerList列表的用户,开始游戏
-
-	} else {
+	if n < 2 {
 		return
 	}
+
+	log.Debug("this room is Running! ~")
+
+	gr.pot = 0
+	gr.minRaise = 0
+	gr.publicCardKeys = []int32{}
+	gr.Pots = []int32{}
+
+	gr.remain = 0
+	gr.allin = 0
+
+	gr.Status = emRoomStateRun
+	gr.gameStep = pb_msg.Enum_GameStep_STEP_WAITING
+
+	//1、产生庄家
+	var dealer *Player
+	button := gr.Button - 1
+	gr.Each((button+1)%uint32(gr.RoomMaxPlayer()), func(p *Player) bool {
+		gr.Button = uint32(p.chair)
+		dealer = p
+		return false
+	})
+	dealer.isButton = true
+
+	//获取庄家数据，进行广播，因为重新开始会有多名玩家
+	enter := dealer.RspEnterRoom()
+	gr.Broadcast(enter)
+	log.Debug("庄家的座位号为 : %v", dealer.chair)
+
+	//2、洗牌
+	gr.Cards.Shuffle()
+
+	//3、产生小盲
+	sb := gr.Blind(dealer.chair)
+	sb.blind = pb_msg.Enum_Blind_SMALL_BLIND
+	log.Debug("小盲注座位号为 : %v", sb.chair)
+	//4、小盲注下注
+	gr.betting(sb, float64(gr.SB))
+
+	//5、产生大盲
+	bb := gr.Blind(sb.chair)
+	bb.blind = pb_msg.Enum_Blind_BIG_BLIND
+	log.Debug("大盲注座位号为 : %v", bb.chair)
+	//6、大盲注下注
+	gr.betting(bb, float64(gr.BB))
+
+	// Round 1：preFlop 开始发手牌,下注
+	gr.gameStep = pb_msg.Enum_GameStep_STEP_PRE_FLOP
+
+	//准备阶段
+	gr.readyPlay()
+
+	gr.Each(0, func(p *Player) bool {
+		//1、生成玩家手牌,获取的是对应牌型生成二进制的数
+		p.cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take()}
+		p.cardKeys = p.cards.HexInt()
+
+		log.Debug("获取牌型 ~ :%v", p.cards.Hex())
+		log.Debug("玩家手牌 ~ :%v", p.cards.HexInt())
+		//2、获取手牌类型,只有两个可能,1为高牌,2为一对
+		kind, _ := algorithm.De(p.cards.GetType())
+		log.Debug("手牌类型 ~ :%v", kind)
+
+		enter := p.RspEnterRoom()
+		p.connAgent.WriteMsg(enter)
+		return true
+	})
+	//行动, 下注, 如果玩家全部摊牌直接比牌
+	gr.action(0)
+
+	//b、是否本轮已经结束
+	// Round 2：Flop 翻牌圈,牌桌上发3张公牌
+	//gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP
+	//1、生成桌面公牌
+	gr.Cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take(), gr.Cards.Take()}
+	//2、赋值
+	gr.publicCardKeys = gr.Cards.HexInt()
+	gr.Each(0, func(p *Player) bool {
+		//生成的桌面公牌赋值
+		return true
+	})
+	log.Debug("桌面工牌 ~ :%v", gr.Cards)
+
+	// Round 3：Turn 转牌圈,牌桌上发第4张公共牌
+	//gr.gameStep = pb_msg.Enum_GameStep_STEP_TURN
+
+	// Round 4：River 河牌圈,牌桌上发第5张公共牌
+	//gr.gameStep = pb_msg.Enum_GameStep_STEP_RIVER
+
+	// showdown 摊开底牌,开牌比大小
+	//gr.gameStep = pb_msg.Enum_GameStep_STEP_SHOW_DOWN
+
+	//6、游戏结束，停留5秒，重新开始游戏
+	//gr.Status = emRoomStateOver
+
+	//遍历房间所有用户，玩家OnLine状态为false说明用户已经断线，直接踢掉
+	for _, v := range gr.AllPlayer {
+		if v != nil && v.IsOnLine == false {
+			//发送配置消息给前端，用户已断线
+			v.SendConfigMsg(RECODE_LOSTCONNECT, data, pb_msg.Enum_SvrTipType_MSG)
+			log.Debug("用户已掉线,直接踢出房间~")
+			v.PlayerExitRoom()
+		}
+	}
+	//重开遍历PlayerList列表的用户,开始游戏
+
 }
 
 //PlayerJoin 玩家加入房间

@@ -238,10 +238,8 @@ func (p *Player) GetUserRoomInfo() *Player {
 	for _, v := range gameHall.roomList {
 		if v != nil {
 			for _, pl := range v.AllPlayer {
-				if pl != nil {
-					if pl.ID == p.ID {
-						return pl
-					}
+				if pl != nil && pl.ID == p.ID {
+					return pl
 				}
 			}
 		}
@@ -276,15 +274,16 @@ func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
 			data.PlayerInfo.Id = &v.ID
 			data.PlayerInfo.Name = &v.name
 			data.PlayerInfo.Face = &v.headImg
-			data.PlayerInfo.Balance = &v.balance
+			data.PlayerInfo.Balance = &v.chips
 			data.Position = &v.chair
 			data.IsRaised = &v.IsRaised
 			data.PlayerStatus = &v.playerStatus
 			data.DropedBets = &v.dropedBets
 			data.DropedBetsSum = &v.dropedBetsSum
-			data.CardKeys = v.cardKeys
+			if p.ID == v.ID {
+				data.CardKeys = v.cardKeys
+			}
 			data.CardSuitData = new(pb_msg.CardSuitData)
-			//v.cardSuitData = new(CardSuitData)
 			data.CardSuitData.HandCardKeys = v.cardSuitData.HandCardKeys
 			data.CardSuitData.PublicCardKeys = v.cardSuitData.PublicCardKeys
 			data.CardSuitData.SuitPattern = &v.cardSuitData.SuitPattern
@@ -307,7 +306,7 @@ func (p *Player) OtherPlayerJoin() {
 	pl.PlayerData.PlayerInfo.Id = &p.ID
 	pl.PlayerData.PlayerInfo.Name = &p.name
 	pl.PlayerData.PlayerInfo.Face = &p.headImg
-	pl.PlayerData.PlayerInfo.Balance = &p.balance
+	pl.PlayerData.PlayerInfo.Balance = &p.chips
 	pl.PlayerData.Position = &p.chair
 	pl.PlayerData.IsRaised = &p.IsRaised
 	pl.PlayerData.PlayerStatus = &p.playerStatus
@@ -388,7 +387,7 @@ func (p *Player) StandUpBattle() {
 
 //GetActionState 获取玩家状态
 func (p *Player) GetActionState(amount float64, act int32) {
-	p.dropedBets = amount
+	p.room.preChips = amount
 	p.action = pb_msg.Enum_ActionOptions(act)
-	log.Debug("玩家行动状态2 金额: %v 状态: %v", p.dropedBets, p.action)
+	log.Debug("玩家行动状态2 金额: %v 状态: %v", p.room.preChips, p.action)
 }
