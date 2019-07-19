@@ -274,7 +274,7 @@ func (gr *GameRoom) action(pos uint32) {
 		//2、每个玩家下注状态
 		switch p.action {
 		case pb_msg.Enum_ActionOptions_ACT_FOLD:
-			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
+			//p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
 		case pb_msg.Enum_ActionOptions_ACT_CALL:
 			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CALL
 			//if p.room.preChips
