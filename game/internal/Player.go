@@ -48,10 +48,11 @@ type Player struct {
 	isAllIn       bool                     //是否已经AllIn
 	resultMoney   float64                  //本局游戏结束时收到的钱
 
-	action   pb_msg.Enum_ActionOptions //玩家行动命令
-	chips    float64                   //带入筹码
-	room     *GameRoom                 //所在房间
-	IsOnLine bool                      //是否在线
+	HandValue uint32
+	actions   chan pb_msg.Enum_ActionOptions //玩家行动命令
+	chips     float64                        //带入筹码
+	room      *GameRoom                      //所在房间
+	IsOnLine  bool                           //是否在线
 }
 
 func (p *Player) Init() {
@@ -73,8 +74,10 @@ func (p *Player) Init() {
 	p.isButton = false
 	p.isAllIn = false
 	p.resultMoney = 0
+
 	p.chips = 0
 	p.room = nil
+	p.actions = make(chan pb_msg.Enum_ActionOptions)
 	p.IsOnLine = true
 	p.uClientDelay = 0
 }
@@ -385,9 +388,52 @@ func (p *Player) StandUpBattle() {
 	p.room.Broadcast(s)
 }
 
-//GetActionState 获取玩家状态
-func (p *Player) GetActionState(amount float64, act int32) {
-	p.room.preChips = amount
-	p.action = pb_msg.Enum_ActionOptions(act)
-	log.Debug("玩家行动状态2 金额: %v 状态: %v", p.room.preChips, p.action)
+func (p *Player) GetAction() {
+	waitTime := int32(p.room.roomInfo.ActionTimeS)
+	timker := time.NewTimer(time.Second * time.Duration(waitTime))
+
+	log.Debug("行动时间为1 :%v", time.Now().Format("2006-01-02 15:04:05"))
+	select {
+	case x := <-p.actions:
+		timker.Stop()
+		log.Debug("玩家的操作为 :%v", x)
+		switch x {
+		case pb_msg.Enum_ActionOptions_ACT_FOLD:
+			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
+			p.room.remain--
+		case pb_msg.Enum_ActionOptions_ACT_CALL:
+			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CALL
+			//玩家筹码
+			p.chips -= p.room.preChips
+			//本轮下注金额
+			p.dropedBets += p.room.preChips
+			//本局玩家下注总金额
+			p.dropedBetsSum += p.room.preChips
+			//总筹码
+			p.room.pot += p.room.preChips
+		case pb_msg.Enum_ActionOptions_ACT_RAISE:
+			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_RAISE
+			p.chips -= p.room.preChips
+			p.dropedBets += p.room.preChips
+			//上个玩家下注金额
+			p.room.preChips = p.dropedBets
+			p.dropedBetsSum += p.room.preChips
+			p.room.pot += p.room.preChips
+		case pb_msg.Enum_ActionOptions_ACT_CHECK:
+			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CHECK
+		}
+		if p.chips == 0 {
+			p.room.allin++
+		}
+		//玩家本局下注的总筹码数
+		p.room.Chips[p.chair] += uint32(p.room.preChips)
+	case <-timker.C:
+		log.Debug("行动时间为2 :%v", time.Now().Format("2006-01-02 15:04:05"))
+		timker.Stop()
+		log.Debug("玩家超时弃牌 :%v", p.ID)
+		//超时弃牌
+		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
+		p.room.remain--
+		return
+	}
 }

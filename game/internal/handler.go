@@ -186,7 +186,8 @@ func handleAction(args []interface{}) {
 	if ok {
 		amount := float64(*m.BetAmount)
 		p.room.preChips = amount
-		p.action = *m.Action
-		//p.GetActionState(amount, act)
+
+		p.actions <- *m.Action
+
 	}
 }

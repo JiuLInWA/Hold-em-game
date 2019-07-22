@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"github.com/dolotech/lib/utils"
 	"github.com/name5566/leaf/log"
 	"math/rand"
 	"server/game/algorithm"
@@ -44,16 +45,14 @@ type GameRoom struct {
 	//房间状态
 	Status RoomStat
 
-	Timeout time.Duration
-
-	preChips float64 //上一个玩家的下注金额
-	remain   int32   //记录每个阶段玩家的下注的数量
-	allin    int32   //allin玩家的数量
-	Chips    []int32 //所有玩家本局下的总筹码,对应player玩家
-	Pots     []int32 //奖池筹码数,第一项为主池，其他项(若存在)为边池
-	Button   uint32  //庄家座位号
-	SB       uint32  //小盲注
-	BB       uint32  //大盲注
+	preChips float64  //当前回合,上一个玩家的下注金额
+	remain   int32    //记录每个阶段玩家的下注的数量
+	allin    int32    //allin玩家的数量
+	Chips    []uint32 //所有玩家本局下的总筹码,对应player玩家
+	Pot      []uint32 //奖池筹码数,第一项为主池，其他项(若存在)为边池
+	Button   uint32   //庄家座位号
+	SB       uint32   //小盲注
+	BB       uint32   //大盲注
 }
 
 //Init 房间初始化
@@ -83,7 +82,8 @@ func (gr *GameRoom) Init(r *RoomInfo) {
 	gr.Status = emRoomStateNone
 	gr.remain = 0
 	gr.allin = 0
-	gr.Pots = []int32{}
+	gr.Chips = make([]uint32, r.MaxPlayer)
+	gr.Pot = []uint32{}
 
 	gr.Button = 0
 	cd := CfgDataHandle(r.CfgId)
@@ -228,7 +228,8 @@ func (gr *GameRoom) betting(p *Player, blind float64) {
 	p.dropedBetsSum = p.dropedBetsSum + blind
 	//总筹码变动
 	gr.pot = gr.pot + blind
-	fmt.Println("总筹码变动：", gr.pot)
+	//玩家筹码池
+	p.room.Chips[p.chair] += uint32(blind)
 
 	//广播发送玩家盲注金额
 	msg := p.RspEnterRoom()
@@ -236,18 +237,28 @@ func (gr *GameRoom) betting(p *Player, blind float64) {
 
 }
 
-//
-func (gr *GameRoom) getTimer(p *Player) {
-	//timeout := time.NewTimer(time.Second * 15)
-
+func (gr *GameRoom) calc() (pots []handPot) {
+	pots = calcPot(gr.Chips)
+	gr.Pot = gr.Pot[:]
+	var ps []uint32
+	for _, pot := range pots {
+		gr.Pot = append(gr.Pot, pot.Pot)
+		ps = append(ps, pot.Pot)
+	}
+	return
 }
 
 //readyPlay 准备阶段
 func (gr *GameRoom) readyPlay() {
+	gr.preChips = 0
 	gr.Each(0, func(p *Player) bool {
-		//记录当前阶段玩家的数量
+		//if p.playerStatus != pb_msg.Enum_PlayerStatus_STATUS_FOLD {
+		//	//记录当前阶段未弃牌玩家的数量
+		//	gr.remain++
+		//	log.Debug("gr.remain++ :%v", gr.remain)
+		//}
+		p.dropedBets = 0
 		gr.remain++
-		log.Debug("gr.remain++ :%v", gr.remain)
 		return true
 	})
 }
@@ -255,46 +266,43 @@ func (gr *GameRoom) readyPlay() {
 //action 玩家行动
 func (gr *GameRoom) action(pos uint32) {
 
+	if gr.allin+1 >= gr.remain {
+		return
+	}
+
+	var skip uint32
 	//从庄家的下家开始下注
 	if pos == 0 {
 		pos = gr.Button%uint32(gr.RoomMaxPlayer()) + 1
 	}
 
-	gr.Each(pos, func(p *Player) bool {
+	gr.Each(pos-1, func(p *Player) bool {
 		//3、行动玩家是根据庄家的下一位玩家
 		gr.activePos = p.chair
+		log.Debug("行动玩家 ~ :%v", gr.activePos)
+
+		if gr.remain <= 1 {
+			return false
+		}
+		if p.chair == int32(skip) || p.chips == 0 {
+			return true
+		}
+		p.GetAction()
+		if gr.remain <= 1 {
+			return false
+		}
+
 		e := p.RspEnterRoom()
 		action := &pb_msg.ActionPlayerChangedS2C{}
 		action.RoomData = e.RoomData
-		//todo 广播还是指定用户发送
-		p.connAgent.WriteMsg(action)
-		log.Debug("行动玩家 ~ :%v", gr.activePos)
-
-		//1、设置每个玩家下注时间
-		//2、每个玩家下注状态
-		switch p.action {
-		case pb_msg.Enum_ActionOptions_ACT_FOLD:
-			//p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
-		case pb_msg.Enum_ActionOptions_ACT_CALL:
-			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CALL
-			//if p.room.preChips
-
-		case pb_msg.Enum_ActionOptions_ACT_RAISE:
-			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_RAISE
-		case pb_msg.Enum_ActionOptions_ACT_CHECK:
-			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CHECK
-		}
-		//3、下注状态结束则停止时间，进行下一个玩家下注
-		//4、下注时间超时，还未下注则直接弃牌
-		//5、每个玩家的下注金额根据上个用户金额选择下注
-		//6、如果玩家弃牌则改变玩家状态
-		//6、将玩家的下注金额添加到奖金池
-		//7、玩家全部Allin则直接跳到摊牌
-		//8、玩家全部弃牌，则最后一个直接获取奖金池
-		gr.getTimer(p)
+		//有观战玩家，所以这里要广播
+		p.room.Broadcast(action)
 		return true
 	})
+}
 
+func (gr *GameRoom) showdown() {
+	//pots := gr.calc()
 }
 
 //Running 房间运行
@@ -316,8 +324,9 @@ func (gr *GameRoom) Running() {
 	gr.pot = 0
 	gr.minRaise = 0
 	gr.publicCardKeys = []int32{}
-	gr.Pots = []int32{}
+	gr.Pot = []uint32{}
 
+	gr.preChips = 0
 	gr.remain = 0
 	gr.allin = 0
 
@@ -357,50 +366,94 @@ func (gr *GameRoom) Running() {
 	gr.betting(bb, float64(gr.BB))
 
 	// Round 1：preFlop 开始发手牌,下注
+	//1、准备阶段
+	gr.readyPlay()
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_PRE_FLOP
 
-	//准备阶段
-	gr.readyPlay()
-
 	gr.Each(0, func(p *Player) bool {
-		//1、生成玩家手牌,获取的是对应牌型生成二进制的数
+		//2、生成玩家手牌,获取的是对应牌型生成二进制的数
 		p.cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take()}
 		p.cardKeys = p.cards.HexInt()
-
-		log.Debug("获取牌型 ~ :%v", p.cards.Hex())
-		log.Debug("玩家手牌 ~ :%v", p.cards.HexInt())
-		//2、获取手牌类型,只有两个可能,1为高牌,2为一对
-		kind, _ := algorithm.De(p.cards.GetType())
-		log.Debug("手牌类型 ~ :%v", kind)
+		log.Debug("preFlop玩家牌型 ~ :%v", p.cards.Hex())
+		log.Debug("preFlop玩家手牌 ~ :%v", p.cards.HexInt())
 
 		enter := p.RspEnterRoom()
 		p.connAgent.WriteMsg(enter)
 		return true
 	})
-	//行动, 下注, 如果玩家全部摊牌直接比牌
-	gr.action(0)
+	//3、行动, 下注, 如果玩家全部摊牌直接比牌
+	//gr.action(0)
 
-	//b、是否本轮已经结束
+	if gr.remain <= 1 {
+		//直接摊牌
+		goto showdown
+	}
+	//4、设置桌面筹码池
+	gr.calc()
+
 	// Round 2：Flop 翻牌圈,牌桌上发3张公牌
-	//gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP
-	//1、生成桌面公牌
+	//1、准备阶段
+	gr.readyPlay()
+	gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP
+	//2、生成桌面公牌赋值
 	gr.Cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take(), gr.Cards.Take()}
-	//2、赋值
+	log.Debug("Flop桌面工牌字节 ~ :%v", gr.Cards.Hex())
+	log.Debug("Flop桌面工牌数字 ~ :%v", gr.Cards.HexInt())
 	gr.publicCardKeys = gr.Cards.HexInt()
-	gr.Each(0, func(p *Player) bool {
-		//生成的桌面公牌赋值
-		return true
-	})
-	log.Debug("桌面工牌 ~ :%v", gr.Cards)
+
+	//3、行动, 下注, 如果玩家全部摊牌直接比牌
+	//gr.action(0)
+
+	if gr.remain <= 1 {
+		//直接摊牌
+		goto showdown
+	}
+	//4、设置桌面筹码池
+	gr.calc()
 
 	// Round 3：Turn 转牌圈,牌桌上发第4张公共牌
-	//gr.gameStep = pb_msg.Enum_GameStep_STEP_TURN
+	//1、准备阶段
+	gr.readyPlay()
+	gr.gameStep = pb_msg.Enum_GameStep_STEP_TURN
+	//2、生成桌面第四张公牌
+	gr.Cards = gr.Cards.Append(gr.Cards.Take())
+	log.Debug("Turn桌面工牌字节 ~ :%v", gr.Cards.Hex())
+	log.Debug("Turn桌面工牌数字 ~ :%v", gr.Cards.HexInt())
+	//3、行动, 下注, 如果玩家全部摊牌直接比牌
+	//gr.action(0)
+
+	if gr.remain <= 1 {
+		//直接摊牌
+		goto showdown
+	}
+	//4、设置桌面筹码池
+	gr.calc()
 
 	// Round 4：River 河牌圈,牌桌上发第5张公共牌
-	//gr.gameStep = pb_msg.Enum_GameStep_STEP_RIVER
+	//1、准备阶段
+	gr.readyPlay()
+	gr.gameStep = pb_msg.Enum_GameStep_STEP_RIVER
+	//2、生成桌面第五张公牌
+	gr.Cards = gr.Cards.Append(gr.Cards.Take())
+	log.Debug("River桌面工牌字节 ~ :%v", gr.Cards.Hex())
+	log.Debug("River桌面工牌数字 ~ :%v", gr.Cards.HexInt())
+	gr.Each(0, func(p *Player) bool {
+		cs := gr.Cards.Append(p.cards...)
+		value := cs.GetType()
+		p.HandValue = value
+
+		enter := p.RspEnterRoom()
+		p.connAgent.WriteMsg(enter)
+		return true
+	})
+
+	//3、行动, 下注, 如果玩家全部摊牌直接比牌
+	gr.action(0)
 
 	// showdown 摊开底牌,开牌比大小
-	//gr.gameStep = pb_msg.Enum_GameStep_STEP_SHOW_DOWN
+showdown:
+	gr.showdown()
+	gr.gameStep = pb_msg.Enum_GameStep_STEP_SHOW_DOWN
 
 	//6、游戏结束，停留5秒，重新开始游戏
 	//gr.Status = emRoomStateOver
@@ -415,6 +468,10 @@ func (gr *GameRoom) Running() {
 		}
 	}
 	//重开遍历PlayerList列表的用户,开始游戏
+	time.AfterFunc(time.Second*5, func() {
+		defer utils.PrintPanicStack()
+		gr.Running()
+	})
 
 }
 
