@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+//配置消息，全局变量
+var data string
+
 const (
 	RECODE_CREATERR      = 1001
 	RECODE_FINDROOM      = 1002
@@ -15,6 +18,7 @@ const (
 	RECODE_PLAYERDESTORY = 1007
 	RECODE_NOTCHIPS      = 1008
 	RECODE_LOSTCONNECT   = 1009
+	RECODE_TIMEOUTFOLD   = 1010
 )
 
 var recodeText = map[int32]string{
@@ -27,9 +31,10 @@ var recodeText = map[int32]string{
 	RECODE_PLAYERDESTORY: "用户已在其他地方登录",
 	RECODE_NOTCHIPS:      "玩家带入筹码已不足",
 	RECODE_LOSTCONNECT:   "用户已掉线，直接踢出房间",
+	RECODE_TIMEOUTFOLD:   "玩家行动超时，直接弃牌",
 }
 
-var data string
+
 
 func jsonData() {
 	reCode, err := json.Marshal(recodeText)

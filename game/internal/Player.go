@@ -396,7 +396,7 @@ func (p *Player) GetAction() {
 	select {
 	case x := <-p.actions:
 		timker.Stop()
-		log.Debug("玩家的操作为 :%v", x)
+		log.Debug("玩家的行动操作为 :%v", x)
 		switch x {
 		case pb_msg.Enum_ActionOptions_ACT_FOLD:
 			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
@@ -430,8 +430,10 @@ func (p *Player) GetAction() {
 	case <-timker.C:
 		log.Debug("行动时间为2 :%v", time.Now().Format("2006-01-02 15:04:05"))
 		timker.Stop()
-		log.Debug("玩家超时弃牌 :%v", p.ID)
 		//超时弃牌
+		p.SendConfigMsg(RECODE_TIMEOUTFOLD, data, pb_msg.Enum_SvrTipType_MSG)
+		log.Debug("玩家行动超时,直接弃牌 :%v", p.ID)
+
 		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
 		p.room.remain--
 		return

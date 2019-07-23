@@ -188,6 +188,5 @@ func handleAction(args []interface{}) {
 		p.room.preChips = amount
 
 		p.actions <- *m.Action
-
 	}
 }

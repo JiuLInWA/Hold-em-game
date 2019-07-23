@@ -1,7 +1,6 @@
 package algorithm
 
 import (
-	"github.com/name5566/leaf/log"
 	"math/rand"
 	"time"
 )
@@ -20,8 +19,8 @@ func (this *Cards) Shuffle() {
 		index := r.Int() % i
 		(*this)[i], (*this)[index] = (*this)[index], (*this)[i]
 	}
-	log.Debug("%#v",*this)
-	log.Debug("洗牌牌型数据 ~ :%v", len(*this))
+	//log.Debug("%#v",*this)
+	//log.Debug("洗牌牌型数据 ~ :%v", len(*this))
 }
 
 // todo 两对和四张起脚牌的判定

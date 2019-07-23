@@ -58,6 +58,7 @@ func wsMsg1() []byte {
 	//*message.RoomInfo.ActionTimeS = 15
 	message := &pb_msg.PlayerActionC2S{}
 	message.BetAmount = new(float64)
+	*message.BetAmount = 50
 	message.Action = new(pb_msg.Enum_ActionOptions)
 	*message.Action = 1
 

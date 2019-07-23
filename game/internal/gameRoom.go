@@ -237,6 +237,7 @@ func (gr *GameRoom) betting(p *Player, blind float64) {
 
 }
 
+//calc 筹码池
 func (gr *GameRoom) calc() (pots []handPot) {
 	pots = calcPot(gr.Chips)
 	gr.Pot = gr.Pot[:]
@@ -252,11 +253,8 @@ func (gr *GameRoom) calc() (pots []handPot) {
 func (gr *GameRoom) readyPlay() {
 	gr.preChips = 0
 	gr.Each(0, func(p *Player) bool {
-		//if p.playerStatus != pb_msg.Enum_PlayerStatus_STATUS_FOLD {
-		//	//记录当前阶段未弃牌玩家的数量
-		//	gr.remain++
-		//	log.Debug("gr.remain++ :%v", gr.remain)
-		//}
+
+		p.HandValue = 0
 		p.dropedBets = 0
 		gr.remain++
 		return true
@@ -276,7 +274,7 @@ func (gr *GameRoom) action(pos uint32) {
 		pos = gr.Button%uint32(gr.RoomMaxPlayer()) + 1
 	}
 
-	gr.Each(pos-1, func(p *Player) bool {
+	gr.Each(pos, func(p *Player) bool {
 		//3、行动玩家是根据庄家的下一位玩家
 		gr.activePos = p.chair
 		log.Debug("行动玩家 ~ :%v", gr.activePos)
@@ -296,13 +294,58 @@ func (gr *GameRoom) action(pos uint32) {
 		action := &pb_msg.ActionPlayerChangedS2C{}
 		action.RoomData = e.RoomData
 		//有观战玩家，所以这里要广播
-		p.room.Broadcast(action)
+		gr.Broadcast(action)
 		return true
 	})
 }
 
 func (gr *GameRoom) showdown() {
-	//pots := gr.calc()
+	pots := gr.calc()
+	//log.Debug("pots::: %v", pots)
+
+	for i, _ := range gr.Chips {
+		log.Debug("玩家:%v", i)
+		gr.Chips[i] = 0
+	}
+
+	for _, pot := range pots {
+		//log.Debug("~~~~~~~~~~~~~~pot:%v", pot)
+		var maxP *Player
+		for _, pos := range pot.OPos {
+			//log.Debug("~~~~~~~~~~~~~~pos:%v", pos)
+			p := gr.PlayerList[pos]
+			if p != nil && len(p.cards) > 0 {
+				if maxP == nil {
+					maxP = p
+					continue
+				}
+				if p.HandValue > maxP.HandValue {
+					maxP = p
+				}
+			}
+		}
+		var winners []int32
+		for _, pos := range pot.OPos {
+			p := gr.PlayerList[pos]
+			if p != nil && p.HandValue == maxP.HandValue {
+				winners = append(winners, p.chair)
+			}
+		}
+		if len(winners) == 0 {
+			log.Error("!!!no winners!!!")
+			return
+		}
+		for _, winner := range winners {
+			gr.Chips[winner] += pot.Pot / uint32(len(winners))
+		}
+		gr.Chips[winners[0]] += pot.Pot % uint32(len(winners)) // odd chips
+	}
+	for i, _ := range gr.Chips {
+		if gr.PlayerList[i] != nil {
+			//todo
+			gr.PlayerList[i].chips += float64(gr.Chips[i])
+		}
+	}
 }
 
 //Running 房间运行
@@ -333,6 +376,9 @@ func (gr *GameRoom) Running() {
 	gr.Status = emRoomStateRun
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_WAITING
 
+	//定义公共牌
+	var pubCards algorithm.Cards
+
 	//1、产生庄家
 	var dealer *Player
 	button := gr.Button - 1
@@ -346,7 +392,7 @@ func (gr *GameRoom) Running() {
 	//获取庄家数据，进行广播，因为重新开始会有多名玩家
 	enter := dealer.RspEnterRoom()
 	gr.Broadcast(enter)
-	log.Debug("庄家的座位号为 : %v", dealer.chair)
+	log.Debug("庄家的座位号为 :%v", dealer.chair)
 
 	//2、洗牌
 	gr.Cards.Shuffle()
@@ -354,14 +400,14 @@ func (gr *GameRoom) Running() {
 	//3、产生小盲
 	sb := gr.Blind(dealer.chair)
 	sb.blind = pb_msg.Enum_Blind_SMALL_BLIND
-	log.Debug("小盲注座位号为 : %v", sb.chair)
+	log.Debug("小盲注座位号为 :%v", sb.chair)
 	//4、小盲注下注
 	gr.betting(sb, float64(gr.SB))
 
 	//5、产生大盲
 	bb := gr.Blind(sb.chair)
 	bb.blind = pb_msg.Enum_Blind_BIG_BLIND
-	log.Debug("大盲注座位号为 : %v", bb.chair)
+	log.Debug("大盲注座位号为 :%v", bb.chair)
 	//6、大盲注下注
 	gr.betting(bb, float64(gr.BB))
 
@@ -374,15 +420,15 @@ func (gr *GameRoom) Running() {
 		//2、生成玩家手牌,获取的是对应牌型生成二进制的数
 		p.cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take()}
 		p.cardKeys = p.cards.HexInt()
-		log.Debug("preFlop玩家牌型 ~ :%v", p.cards.Hex())
-		log.Debug("preFlop玩家手牌 ~ :%v", p.cards.HexInt())
+		//log.Debug("preFlop玩家牌型 ~ :%v", p.cards.Hex())
+		//log.Debug("preFlop玩家手牌 ~ :%v", p.cards.HexInt())
 
 		enter := p.RspEnterRoom()
 		p.connAgent.WriteMsg(enter)
 		return true
 	})
 	//3、行动, 下注, 如果玩家全部摊牌直接比牌
-	//gr.action(0)
+	gr.action(0)
 
 	if gr.remain <= 1 {
 		//直接摊牌
@@ -396,13 +442,13 @@ func (gr *GameRoom) Running() {
 	gr.readyPlay()
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP
 	//2、生成桌面公牌赋值
-	gr.Cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take(), gr.Cards.Take()}
-	log.Debug("Flop桌面工牌字节 ~ :%v", gr.Cards.Hex())
-	log.Debug("Flop桌面工牌数字 ~ :%v", gr.Cards.HexInt())
-	gr.publicCardKeys = gr.Cards.HexInt()
+	pubCards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take(), gr.Cards.Take()}
+	//log.Debug("Flop桌面工牌字节 ~ :%v", pubCards.Hex())
+	//log.Debug("Flop桌面工牌数字 ~ :%v", pubCards.HexInt())
 
+	gr.publicCardKeys = pubCards.HexInt()
 	//3、行动, 下注, 如果玩家全部摊牌直接比牌
-	//gr.action(0)
+	gr.action(0)
 
 	if gr.remain <= 1 {
 		//直接摊牌
@@ -416,11 +462,13 @@ func (gr *GameRoom) Running() {
 	gr.readyPlay()
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_TURN
 	//2、生成桌面第四张公牌
-	gr.Cards = gr.Cards.Append(gr.Cards.Take())
-	log.Debug("Turn桌面工牌字节 ~ :%v", gr.Cards.Hex())
-	log.Debug("Turn桌面工牌数字 ~ :%v", gr.Cards.HexInt())
+	pubCards = pubCards.Append(gr.Cards.Take())
+	//log.Debug("Turn桌面工牌字节 ~ :%v", pubCards.Hex())
+	//log.Debug("Turn桌面工牌数字 ~ :%v", pubCards.HexInt())
+
+	gr.publicCardKeys = pubCards.HexInt()
 	//3、行动, 下注, 如果玩家全部摊牌直接比牌
-	//gr.action(0)
+	gr.action(0)
 
 	if gr.remain <= 1 {
 		//直接摊牌
@@ -434,11 +482,17 @@ func (gr *GameRoom) Running() {
 	gr.readyPlay()
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_RIVER
 	//2、生成桌面第五张公牌
-	gr.Cards = gr.Cards.Append(gr.Cards.Take())
-	log.Debug("River桌面工牌字节 ~ :%v", gr.Cards.Hex())
-	log.Debug("River桌面工牌数字 ~ :%v", gr.Cards.HexInt())
+	pubCards = pubCards.Append(gr.Cards.Take())
+	//log.Debug("River桌面工牌字节 ~ :%v", pubCards.Hex())
+	//log.Debug("River桌面工牌数字 ~ :%v", pubCards.HexInt())
+
+	gr.publicCardKeys = pubCards.HexInt()
+
 	gr.Each(0, func(p *Player) bool {
-		cs := gr.Cards.Append(p.cards...)
+		cs := pubCards.Append(p.cards...)
+		kind, _ := algorithm.De(cs.GetType())
+		log.Debug("玩家手牌最后牌型：%v , %v", p.ID, kind)
+
 		value := cs.GetType()
 		p.HandValue = value
 
@@ -452,11 +506,14 @@ func (gr *GameRoom) Running() {
 
 	// showdown 摊开底牌,开牌比大小
 showdown:
+	log.Debug("开始摊牌，开牌比大小 ~")
 	gr.showdown()
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_SHOW_DOWN
 
 	//6、游戏结束，停留5秒，重新开始游戏
-	//gr.Status = emRoomStateOver
+	gr.Status = emRoomStateOver
+
+	//todo  广播发送消息表示摊牌
 
 	//遍历房间所有用户，玩家OnLine状态为false说明用户已经断线，直接踢掉
 	for _, v := range gr.AllPlayer {
@@ -507,7 +564,7 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 		gr.Broadcast(enter)
 	}
 
-	// 返回前端房间信息
+	// 返回前端房间信息 todo
 	roomData := p.RspEnterRoom()
 	p.connAgent.WriteMsg(roomData)
 	fmt.Println(roomData)
@@ -518,8 +575,12 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 //ExitFromRoom 玩家从房间退出
 func (gr *GameRoom) ExitFromRoom(p *Player) {
 
-	//玩家离场
+	//玩家离场go
 	p.OtherPlayerLeave()
+
+	//将玩家的字段恢复默认值
+	p.dropedBets = 0
+	p.dropedBetsSum = 0
 
 	if p.chair == -1 {
 		log.Debug("观战玩家退出房间 ~")
