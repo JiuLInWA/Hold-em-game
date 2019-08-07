@@ -17,6 +17,7 @@ func init() {
 	handler(&pb_msg.QuickStartC2S{}, handleQuickStart)
 	handler(&pb_msg.CreateRoomC2S{}, handleCreatRoom)
 	handler(&pb_msg.JoinRoomC2S{}, handleJoinRoom)
+
 	handler(&pb_msg.ExitRoomC2S{}, handleExitRoom)
 	handler(&pb_msg.SitDownC2S{}, handleSitDown)
 	handler(&pb_msg.StandUpC2S{}, handleStandUp)
@@ -145,7 +146,7 @@ func handleJoinRoom(args []interface{}) {
 func handleExitRoom(args []interface{}) {
 	a := args[1].(gate.Agent)
 
-	log.Debug("handleExitRoom 用户退出房间 ~ ")
+	log.Debug("handleExitRoom 用户退出房间~ ")
 
 	p, ok := a.UserData().(*Player)
 	if ok {
@@ -158,7 +159,7 @@ func handleSitDown(args []interface{}) {
 	a := args[1].(gate.Agent)
 
 	p, ok := a.UserData().(*Player)
-	log.Debug("handleSitDown 玩家坐下座位 ~ ")
+	log.Debug("handleSitDown 玩家坐下座位~ ")
 
 	if ok {
 		p.SitDownTable(*m.Position)
@@ -169,7 +170,7 @@ func handleStandUp(args []interface{}) {
 	a := args[1].(gate.Agent)
 
 	p, ok := a.UserData().(*Player)
-	log.Debug("handleStandUp 玩家站起观战 ~ ")
+	log.Debug("handleStandUp 玩家站起观战~ ")
 
 	if ok {
 		p.StandUpBattle()
@@ -181,12 +182,59 @@ func handleAction(args []interface{}) {
 	a := args[1].(gate.Agent)
 
 	p, ok := a.UserData().(*Player)
-	log.Debug("handleAction 玩家开始行动 ~ ")
+	log.Debug("handleAction 玩家开始行动~ :%v", p.ID)
+	log.Debug("handleAction 玩家开始行动~ :%v %v", m.BetAmount, m.Action)
 
 	if ok {
 		amount := float64(*m.BetAmount)
+		//GetPlayerAction(m)
 		p.room.preChips = amount
-
+		//p.actions = make()
 		p.actions <- *m.Action
 	}
 }
+
+
+//	a := args[1].(gate.Agent)
+//	p, ok := a.UserData().(*Player)
+//	if ok {
+//		switch t := args[0].(type) {
+//		case *pb_msg.QuickStartC2S:
+//			r := new(RoomInfo)
+//			r.CfgId = *t.RoomInfo.CfgId
+//			r.MaxPlayer = *t.RoomInfo.MaxPlayer
+//			r.ActionTimeS = *t.RoomInfo.ActionTimeS
+//			gameHall.PlayerQuickStart(p, r)
+//		case *pb_msg.CreateRoomC2S:
+//			r := new(RoomInfo)
+//			r.CfgId = *t.RoomInfo.CfgId
+//			r.MaxPlayer = *t.RoomInfo.MaxPlayer
+//			r.ActionTimeS = *t.RoomInfo.ActionTimeS
+//			r.Pwd = *t.RoomInfo.Pwd
+//			gameHall.PlayerCreatRoom(p, r)
+//		case *pb_msg.JoinRoomC2S:
+//			gameHall.PlayerJoinRoom(p, *t.RoomId, *t.Pwd)
+//		default:
+//			log.Error("GameHall 事件无法识别", t)
+//		}
+//	}
+//}
+//
+//func handleRoomEvent(args []interface{}) {
+//	a := args[1].(gate.Agent)
+//	p, ok := a.UserData().(*Player)
+//	if ok {
+//		switch t := args[0].(type) {
+//		case *pb_msg.ExitRoomC2S:
+//			p.PlayerExitRoom()
+//		case *pb_msg.SitDownC2S:
+//			p.SitDownTable(*t.Position)
+//		case *pb_msg.StandUpC2S:
+//			p.StandUpBattle()
+//		case *pb_msg.PlayerActionC2S:
+//			p.room.handleRoomEvent(a, p, args[0])
+//		default:
+//			log.Error("GameHall 事件无法识别", t)
+//		}
+//	}
+//}

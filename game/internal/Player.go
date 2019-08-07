@@ -106,10 +106,12 @@ func (p *Player) StartBreathe() {
 
 					//未入座 座位为 -1
 					p.chair = -1
-					enter := p.RspEnterRoom()
-					p.room.Broadcast(enter)
-				}
 
+					s := &pb_msg.StandUpS2C{}
+					room := p.RspRoomData()
+					s.RoomData = room
+					p.room.Broadcast(s)
+				}
 				p.connAgent.Destroy()
 				return
 			}
@@ -135,8 +137,8 @@ func (p *Player) SendMsg(msg interface{}) {
 }
 
 //mapGlobalPlayer 全局玩家列表
-var mapGlobalPlayer map[uint32]*Player
 var gPlayerGlobalIndex uint32
+var mapGlobalPlayer map[uint32]*Player
 
 //以用户ID为key的玩家映射表
 var mapUserID2Player map[string]*Player
@@ -153,6 +155,7 @@ func CreatePlayer() *Player {
 	p := &Player{}
 	p.Init()
 	mapGlobalPlayer[gPlayerGlobalIndex] = p
+
 	p.index = gPlayerGlobalIndex
 	fmt.Println("CreatePlayer index ~ :", p.index)
 	gPlayerGlobalIndex++
@@ -250,25 +253,23 @@ func (p *Player) GetUserRoomInfo() *Player {
 	return nil
 }
 
-//RspEnterRoom 返回客户端房间数据
-func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
+//RspRoomData 返回房间数据
+func (p *Player) RspRoomData() *pb_msg.RoomData {
 
-	//需要返回玩家自己本身消息，和同房间其他玩家基础信息
-	er := &pb_msg.EnterRoomS2C{}
-	er.RoomData = new(pb_msg.RoomData)
-	er.RoomData.RoomInfo = new(pb_msg.RoomInfo)
-	er.RoomData.RoomInfo.RoomId = &p.room.roomInfo.RoomId
-	er.RoomData.RoomInfo.CfgId = &p.room.roomInfo.CfgId
-	er.RoomData.RoomInfo.MaxPlayer = &p.room.roomInfo.MaxPlayer
-	er.RoomData.RoomInfo.ActionTimeS = &p.room.roomInfo.ActionTimeS
-	er.RoomData.RoomInfo.Pwd = &p.room.roomInfo.Pwd
-	er.RoomData.IsStepEnd = &p.room.isStepEnd
-	er.RoomData.GameStep = &p.room.gameStep
-	er.RoomData.MinRaise = &p.room.minRaise
-	er.RoomData.ActivePos = &p.room.activePos
-	er.RoomData.NextStepTs = &p.room.nextStepTs
-	er.RoomData.Pot = &p.room.pot
-	er.RoomData.PublicCardKeys = p.room.publicCardKeys
+	r := &pb_msg.RoomData{}
+	r.RoomInfo = new(pb_msg.RoomInfo)
+	r.RoomInfo.RoomId = &p.room.roomInfo.RoomId
+	r.RoomInfo.CfgId = &p.room.roomInfo.CfgId
+	r.RoomInfo.MaxPlayer = &p.room.roomInfo.MaxPlayer
+	r.RoomInfo.ActionTimeS = &p.room.roomInfo.ActionTimeS
+	r.RoomInfo.Pwd = &p.room.roomInfo.Pwd
+	r.IsStepEnd = &p.room.isStepEnd
+	r.GameStep = &p.room.gameStep
+	r.MinRaise = &p.room.minRaise
+	r.ActivePos = &p.room.activePos
+	r.NextStepTs = &p.room.nextStepTs
+	r.Pot = &p.room.pot
+	r.PublicCardKeys = p.room.publicCardKeys
 
 	for _, v := range p.room.AllPlayer {
 		if v != nil {
@@ -295,9 +296,18 @@ func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
 			data.IsButton = &v.isButton
 			data.IsAllIn = &v.isAllIn
 			data.ResultMoney = &v.resultMoney
-			er.RoomData.PlayerDatas = append(er.RoomData.PlayerDatas, data)
+			r.PlayerDatas = append(r.PlayerDatas, data)
 		}
 	}
+	return r
+}
+
+//RspEnterRoom 返回客户端进入房间数据
+func (p *Player) RspEnterRoom() *pb_msg.EnterRoomS2C {
+	//需要返回玩家自己本身消息，和同房间其他玩家基础信息
+	er := &pb_msg.EnterRoomS2C{}
+	r := p.RspRoomData()
+	er.RoomData = r
 	return er
 }
 
@@ -328,7 +338,7 @@ func (p *Player) OtherPlayerJoin() {
 	pl.PlayerData.ResultMoney = &p.resultMoney
 
 	//广播新进入玩家信息
-	p.room.Broadcast(pl)
+	p.room.BroadCastExcept(pl, p)
 }
 
 //OtherPlayerLeave 其他玩家离场(观战也属于)
@@ -337,7 +347,7 @@ func (p *Player) OtherPlayerLeave() {
 	leave.Position = &p.chair
 	leave.Pot = &p.room.pot
 
-	p.room.Broadcast(leave)
+	p.room.BroadCastExcept(leave, p)
 }
 
 //SitDownTable 玩家坐下座位
@@ -356,15 +366,13 @@ func (p *Player) SitDownTable(pos int32) {
 	} else {
 		// 如果已经在Running，游戏已经开始，玩家则为弃牌状态，则广播给其他玩家
 		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
-		enter := p.RspEnterRoom()
-		p.room.Broadcast(enter)
-	}
 
-	// 返回前端房间信息
-	e := p.RspEnterRoom()
-	s := pb_msg.SitDownS2C{}
-	s.RoomData = e.RoomData
-	p.connAgent.WriteMsg(s)
+		// 返回前端房间信息
+		s := &pb_msg.SitDownS2C{}
+		room := p.RspRoomData()
+		s.RoomData = room
+		p.room.Broadcast(s)
+	}
 }
 
 //StandUpBattle 玩家站起观战
@@ -382,60 +390,86 @@ func (p *Player) StandUpBattle() {
 
 	//未入座 座位为 -1，视为观战
 	p.chair = -1
-	e := p.RspEnterRoom()
-	s := pb_msg.SitDownS2C{}
-	s.RoomData = e.RoomData
+
+	s := &pb_msg.StandUpS2C{}
+	room := p.RspRoomData()
+	s.RoomData = room
 	p.room.Broadcast(s)
 }
 
-func (p *Player) GetAction() {
-	waitTime := int32(p.room.roomInfo.ActionTimeS)
-	timker := time.NewTimer(time.Second * time.Duration(waitTime))
+func (p *Player) GetAction(timeout time.Duration) {
+	//超时处理
+	//var after <-chan time.Time
+	//after = time.After(timeout)
+	after := time.NewTicker(timeout)
 
 	log.Debug("行动时间为1 :%v", time.Now().Format("2006-01-02 15:04:05"))
-	select {
-	case x := <-p.actions:
-		timker.Stop()
-		log.Debug("玩家的行动操作为 :%v", x)
-		switch x {
-		case pb_msg.Enum_ActionOptions_ACT_FOLD:
+
+	for {
+		select {
+		case x := <-p.actions:
+			fmt.Println("xxxxxxxxxxxxxxxx:", x)
+
+			log.Debug("玩家的行动操作为 :%v", x)
+			switch x {
+			case pb_msg.Enum_ActionOptions_ACT_FOLD:
+				p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
+				p.room.remain--
+			case pb_msg.Enum_ActionOptions_ACT_CALL:
+				p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CALL
+				//玩家筹码
+				p.chips -= p.room.preChips
+				//本轮下注金额
+				p.dropedBets += p.room.preChips
+				//本局玩家下注总金额
+				p.dropedBetsSum += p.room.preChips
+				//总筹码
+				p.room.pot += p.room.preChips
+			case pb_msg.Enum_ActionOptions_ACT_RAISE:
+				p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_RAISE
+				p.chips -= p.room.preChips
+				p.dropedBets += p.room.preChips
+				//上个玩家下注金额
+				p.room.preChips = p.dropedBets
+				p.dropedBetsSum += p.room.preChips
+				p.room.pot += p.room.preChips
+			case pb_msg.Enum_ActionOptions_ACT_CHECK:
+				p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CHECK
+			}
+			if p.chips == 0 {
+				p.room.allin++
+			}
+			//玩家本局下注的总筹码数
+			p.room.Chips[p.chair] += uint32(p.room.preChips)
+
+			return
+		case <-after.C:
+			log.Debug("行动时间为2 :%v", time.Now().Format("2006-01-02 15:04:05"))
+
+			p.SendConfigMsg(RECODE_TIMEOUTFOLD, data, pb_msg.Enum_SvrTipType_MSG)
+			log.Debug("玩家行动超时,直接弃牌 :%v", p.ID)
+
 			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
 			p.room.remain--
-		case pb_msg.Enum_ActionOptions_ACT_CALL:
-			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CALL
-			//玩家筹码
-			p.chips -= p.room.preChips
-			//本轮下注金额
-			p.dropedBets += p.room.preChips
-			//本局玩家下注总金额
-			p.dropedBetsSum += p.room.preChips
-			//总筹码
-			p.room.pot += p.room.preChips
-		case pb_msg.Enum_ActionOptions_ACT_RAISE:
-			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_RAISE
-			p.chips -= p.room.preChips
-			p.dropedBets += p.room.preChips
-			//上个玩家下注金额
-			p.room.preChips = p.dropedBets
-			p.dropedBetsSum += p.room.preChips
-			p.room.pot += p.room.preChips
-		case pb_msg.Enum_ActionOptions_ACT_CHECK:
-			p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_CHECK
+			return
 		}
-		if p.chips == 0 {
-			p.room.allin++
-		}
-		//玩家本局下注的总筹码数
-		p.room.Chips[p.chair] += uint32(p.room.preChips)
-	case <-timker.C:
-		log.Debug("行动时间为2 :%v", time.Now().Format("2006-01-02 15:04:05"))
-		timker.Stop()
-		//超时弃牌
-		p.SendConfigMsg(RECODE_TIMEOUTFOLD, data, pb_msg.Enum_SvrTipType_MSG)
-		log.Debug("玩家行动超时,直接弃牌 :%v", p.ID)
-
-		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
-		p.room.remain--
-		return
 	}
 }
+
+//func (gr *GameRoom) handleRoomEvent(a gate.Agent, p *Player, e interface{}) {
+//	switch t := e.(type) {
+//	case *pb_msg.PlayerActionC2S:
+//		gr.HandleGameEvent(a, p, e)
+//	default:
+//		log.Error("GameRoom 事件无法处理~", t)
+//	}
+//}
+//
+//func (gr *GameRoom) HandleGameEvent(a gate.Agent, p *Player, e interface{}) {
+//	switch t := e.(type) {
+//	case *pb_msg.PlayerActionC2S:
+//		gr.PlayerPlay(a, p, e.(*pb_msg.PlayerActionC2S))
+//	default:
+//		log.Error("PlayerGame 事件无法处理~", t)
+//	}
+//}

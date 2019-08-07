@@ -19,7 +19,7 @@ type GameHall struct {
 //Init 大厅初始化~！
 func (gh *GameHall) Init() {
 	gh.maxPlayer = 5000
-	fmt.Printf("this is gamehall init~!!it can support %d run~\n", gh.maxPlayer)
+	fmt.Printf("this is gamehall init~!!it can support %d running~\n", gh.maxPlayer)
 }
 
 //CreateRoom 创建一个游戏房间
@@ -31,7 +31,7 @@ func (gh *GameHall) CreateRoom(p *Player, r *RoomInfo) *GameRoom {
 	dataCfg := CfgDataHandle(r.CfgId)
 	if int32(p.balance) < dataCfg.MinTakeIn {
 		balance := strconv.FormatFloat(p.balance, 'f', 2, 64)
-		data = "玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn)
+		data = fmt.Sprintf("玩家金额为" + balance + "," + "房间限制金额为" + string(dataCfg.MinTakeIn))
 		p.SendConfigMsg(RECODE_PLAYERMONEY, data, pb_msg.Enum_SvrTipType_WARN)
 
 		log.Debug("玩家金额不足，创建房间失败 ~")
@@ -73,7 +73,6 @@ func (gh *GameHall) PlayerCreatRoom(p *Player, r *RoomInfo) uint8 {
 	if room == nil {
 		return 0
 	}
-
 	return room.PlayerJoin(p)
 }
 
@@ -91,7 +90,6 @@ func (gh *GameHall) PlayerJoinRoom(p *Player, rid string, pwd string) uint8 {
 			log.Debug("加入房间密码输入错误~")
 			return 0
 		}
-
 		dataCfg := CfgDataHandle(room.roomInfo.CfgId)
 		if int32(p.balance) < dataCfg.MinTakeIn {
 			balance := strconv.FormatFloat(p.balance, 'f', 2, 64)

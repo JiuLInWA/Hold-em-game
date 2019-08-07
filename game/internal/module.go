@@ -16,6 +16,7 @@ type Module struct {
 
 func (m *Module) OnInit() {
 	m.Skeleton = skeleton
+
 	gameHall.Init()
 	InitPlayerMap()
 	jsonData()

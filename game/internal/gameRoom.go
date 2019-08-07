@@ -53,6 +53,9 @@ type GameRoom struct {
 	Button   uint32   //庄家座位号
 	SB       uint32   //小盲注
 	BB       uint32   //大盲注
+
+	clock   *time.Ticker
+	counter uint32
 }
 
 //Init 房间初始化
@@ -91,6 +94,15 @@ func (gr *GameRoom) Init(r *RoomInfo) {
 	gr.BB = uint32(cd.Bb)
 
 	gr.minRaise = float64(gr.BB)
+}
+
+//BroadCastExcept 向指定玩家之外的玩家广播
+func (gr *GameRoom) BroadCastExcept(msg interface{}, except *Player) {
+	for _, p := range gr.AllPlayer {
+		if p != nil && except.chair != p.chair {
+			p.SendMsg(msg)
+		}
+	}
 }
 
 //Broadcast 广播消息
@@ -176,12 +188,10 @@ func (gr *GameRoom) DragInRoomChips(p *Player) float64 {
 //KickPlayer 踢出筹码小与大盲的玩家
 func (gr *GameRoom) KickPlayer() {
 	for _, v := range gr.PlayerList {
-		if v != nil {
-			if v.chips < float64(gr.BB) {
-				v.SendConfigMsg(RECODE_NOTCHIPS, data, pb_msg.Enum_SvrTipType_WARN)
-				log.Debug("玩家带入筹码已不足~")
-				v.PlayerExitRoom()
-			}
+		if v != nil && v.chips < float64(gr.BB) {
+			v.SendConfigMsg(RECODE_NOTCHIPS, data, pb_msg.Enum_SvrTipType_WARN)
+			log.Debug("玩家带入筹码已不足~")
+			v.PlayerExitRoom()
 		}
 	}
 }
@@ -231,10 +241,6 @@ func (gr *GameRoom) betting(p *Player, blind float64) {
 	//玩家筹码池
 	p.room.Chips[p.chair] += uint32(blind)
 
-	//广播发送玩家盲注金额
-	msg := p.RspEnterRoom()
-	gr.Broadcast(msg)
-
 }
 
 //calc 筹码池
@@ -268,7 +274,7 @@ func (gr *GameRoom) action(pos uint32) {
 		return
 	}
 
-	var skip uint32
+	//var skip uint32
 	//从庄家的下家开始下注
 	if pos == 0 {
 		pos = gr.Button%uint32(gr.RoomMaxPlayer()) + 1
@@ -279,22 +285,32 @@ func (gr *GameRoom) action(pos uint32) {
 		gr.activePos = p.chair
 		log.Debug("行动玩家 ~ :%v", gr.activePos)
 
+		changed := &pb_msg.ActionPlayerChangedS2C{}
+		room := p.RspRoomData()
+		changed.RoomData = room
+		gr.Broadcast(changed)
+
 		if gr.remain <= 1 {
 			return false
 		}
-		if p.chair == int32(skip) || p.chips == 0 {
+		if p.chips == 0 { // p.chair == int32(skip) ||
 			return true
 		}
-		p.GetAction()
+		//玩家行动
+		waitTime := int32(p.room.roomInfo.ActionTimeS)
+		ticker := time.Second * time.Duration(waitTime)
+
+		p.GetAction(ticker)
+
 		if gr.remain <= 1 {
 			return false
 		}
 
-		e := p.RspEnterRoom()
-		action := &pb_msg.ActionPlayerChangedS2C{}
-		action.RoomData = e.RoomData
-		//有观战玩家，所以这里要广播
-		gr.Broadcast(action)
+		act := &pb_msg.PlayerActionS2C{}
+		room = p.RspRoomData()
+		act.RoomData = room
+		p.connAgent.WriteMsg(act)
+
 		return true
 	})
 }
@@ -388,10 +404,6 @@ func (gr *GameRoom) Running() {
 		return false
 	})
 	dealer.isButton = true
-
-	//获取庄家数据，进行广播，因为重新开始会有多名玩家
-	enter := dealer.RspEnterRoom()
-	gr.Broadcast(enter)
 	log.Debug("庄家的座位号为 :%v", dealer.chair)
 
 	//2、洗牌
@@ -420,11 +432,12 @@ func (gr *GameRoom) Running() {
 		//2、生成玩家手牌,获取的是对应牌型生成二进制的数
 		p.cards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take()}
 		p.cardKeys = p.cards.HexInt()
-		//log.Debug("preFlop玩家牌型 ~ :%v", p.cards.Hex())
-		//log.Debug("preFlop玩家手牌 ~ :%v", p.cards.HexInt())
+		log.Debug("preFlop玩家手牌 ~ :%v", p.cards.HexInt())
 
-		enter := p.RspEnterRoom()
-		p.connAgent.WriteMsg(enter)
+		game := &pb_msg.GameStepChangeS2C{}
+		room := p.RspRoomData()
+		game.RoomData = room
+		p.connAgent.WriteMsg(game)
 		return true
 	})
 	//3、行动, 下注, 如果玩家全部摊牌直接比牌
@@ -441,12 +454,21 @@ func (gr *GameRoom) Running() {
 	//1、准备阶段
 	gr.readyPlay()
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_FLOP
+
 	//2、生成桌面公牌赋值
 	pubCards = algorithm.Cards{gr.Cards.Take(), gr.Cards.Take(), gr.Cards.Take()}
-	//log.Debug("Flop桌面工牌字节 ~ :%v", pubCards.Hex())
-	//log.Debug("Flop桌面工牌数字 ~ :%v", pubCards.HexInt())
+	log.Debug("Flop桌面工牌数字 ~ :%v", pubCards.HexInt())
 
 	gr.publicCardKeys = pubCards.HexInt()
+	gr.Each(0, func(p *Player) bool {
+		//游戏阶段变更
+		game := &pb_msg.GameStepChangeS2C{}
+		room := p.RspRoomData()
+		game.RoomData = room
+		p.connAgent.WriteMsg(game)
+		return true
+	})
+
 	//3、行动, 下注, 如果玩家全部摊牌直接比牌
 	gr.action(0)
 
@@ -461,12 +483,21 @@ func (gr *GameRoom) Running() {
 	//1、准备阶段
 	gr.readyPlay()
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_TURN
+
 	//2、生成桌面第四张公牌
 	pubCards = pubCards.Append(gr.Cards.Take())
-	//log.Debug("Turn桌面工牌字节 ~ :%v", pubCards.Hex())
 	//log.Debug("Turn桌面工牌数字 ~ :%v", pubCards.HexInt())
 
 	gr.publicCardKeys = pubCards.HexInt()
+	gr.Each(0, func(p *Player) bool {
+		//游戏阶段变更
+		game := &pb_msg.GameStepChangeS2C{}
+		room := p.RspRoomData()
+		game.RoomData = room
+		p.connAgent.WriteMsg(game)
+		return true
+	})
+
 	//3、行动, 下注, 如果玩家全部摊牌直接比牌
 	gr.action(0)
 
@@ -481,23 +512,24 @@ func (gr *GameRoom) Running() {
 	//1、准备阶段
 	gr.readyPlay()
 	gr.gameStep = pb_msg.Enum_GameStep_STEP_RIVER
+
 	//2、生成桌面第五张公牌
 	pubCards = pubCards.Append(gr.Cards.Take())
-	//log.Debug("River桌面工牌字节 ~ :%v", pubCards.Hex())
 	//log.Debug("River桌面工牌数字 ~ :%v", pubCards.HexInt())
 
 	gr.publicCardKeys = pubCards.HexInt()
-
 	gr.Each(0, func(p *Player) bool {
 		cs := pubCards.Append(p.cards...)
-		kind, _ := algorithm.De(cs.GetType())
-		log.Debug("玩家手牌最后牌型：%v , %v", p.ID, kind)
-
 		value := cs.GetType()
 		p.HandValue = value
 
-		enter := p.RspEnterRoom()
-		p.connAgent.WriteMsg(enter)
+		kind, _ := algorithm.De(value)
+		log.Debug("玩家手牌最后牌型：%v , %v", p.ID, kind)
+
+		game := &pb_msg.GameStepChangeS2C{}
+		room := p.RspRoomData()
+		game.RoomData = room
+		p.connAgent.WriteMsg(game)
 		return true
 	})
 
@@ -554,20 +586,20 @@ func (gr *GameRoom) PlayerJoin(p *Player) uint8 {
 	//新加入的玩家信息
 	p.OtherPlayerJoin()
 
+	// 返回前端房间信息
+	enter := p.RspEnterRoom()
+	p.connAgent.WriteMsg(enter)
+
 	if gr.Status != emRoomStateRun {
 		// RUN
 		gr.Running()
 	} else {
 		// 如果已经在Running，游戏已经开始，玩家则为弃牌状态，则广播给其他玩家
 		p.playerStatus = pb_msg.Enum_PlayerStatus_STATUS_FOLD
-		enter := p.RspEnterRoom()
-		gr.Broadcast(enter)
-	}
 
-	// 返回前端房间信息 todo
-	roomData := p.RspEnterRoom()
-	p.connAgent.WriteMsg(roomData)
-	fmt.Println(roomData)
+		enter := p.RspEnterRoom()
+		gr.BroadCastExcept(enter, p)
+	}
 
 	return uint8(p.chair)
 }
@@ -637,4 +669,20 @@ func (gr *GameRoom) ExitFromRoom(p *Player) {
 
 		p.connAgent.WriteMsg(data)
 	}
+}
+
+func (gr *GameRoom) ClockReset(duration uint32) {
+	// defer dl.ClockStop() 为什么不行？
+	defer gr.clock.Stop()
+	defer func() { gr.counter = 0 }()
+	//log.Debug("clock重置 deadline: %v event: %v", duration, GetFunctionName(next))
+	go func() {
+		for t := range gr.clock.C {
+			log.Debug("时间滴答：%v", t)
+			gr.counter++
+			if duration == gr.counter {
+				break
+			}
+		}
+	}()
 }

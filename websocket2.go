@@ -14,7 +14,7 @@ import (
 )
 
 //10.63.60.96
-const Host1 = "10.63.60.96"
+const Host1 = "10.63.90.1"
 const TCPPort1 = "8888"
 const WSPort1 = "8889"
 
@@ -48,19 +48,19 @@ func tcpMsg1() []byte {
 
 func wsMsg1() []byte {
 	// 记得一定要对应消息号 在FindMsgId()函数
-	//message := &pb_msg.QuickStartC2S{}
-	//message.RoomInfo = new(pb_msg.RoomInfo)
-	//message.RoomInfo.CfgId = new(string)
-	//message.RoomInfo.MaxPlayer = new(int32)
-	//message.RoomInfo.ActionTimeS = new(pb_msg.Enum_ActionTimeS)
-	//*message.RoomInfo.CfgId = "1"
-	//*message.RoomInfo.MaxPlayer = 3
-	//*message.RoomInfo.ActionTimeS = 15
-	message := &pb_msg.PlayerActionC2S{}
-	message.BetAmount = new(float64)
-	*message.BetAmount = 50
-	message.Action = new(pb_msg.Enum_ActionOptions)
-	*message.Action = 1
+	message := &pb_msg.QuickStartC2S{}
+	message.RoomInfo = new(pb_msg.RoomInfo)
+	message.RoomInfo.CfgId = new(string)
+	message.RoomInfo.MaxPlayer = new(int32)
+	message.RoomInfo.ActionTimeS = new(pb_msg.Enum_ActionTimeS)
+	*message.RoomInfo.CfgId = "1"
+	*message.RoomInfo.MaxPlayer = 3
+	*message.RoomInfo.ActionTimeS = 15
+	//message := &pb_msg.PlayerActionC2S{}
+	//message.BetAmount = new(float64)
+	//*message.BetAmount = 50
+	//message.Action = new(pb_msg.Enum_ActionOptions)
+	//*message.Action = 1
 
 	payload, err := proto.Marshal(message)
 	if err != nil {

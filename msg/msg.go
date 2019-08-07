@@ -34,5 +34,4 @@ func init() {
 	Processor.Register(&pb_msg.ActionPlayerChangedS2C{}) //--18
 	Processor.Register(&pb_msg.PlayerActionC2S{})        //--19
 	Processor.Register(&pb_msg.PlayerActionS2C{})        //--20
-
 }

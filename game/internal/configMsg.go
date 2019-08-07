@@ -35,7 +35,6 @@ var recodeText = map[int32]string{
 }
 
 
-
 func jsonData() {
 	reCode, err := json.Marshal(recodeText)
 	if err != nil {
